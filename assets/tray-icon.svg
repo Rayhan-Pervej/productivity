@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 32 32">
+  <!-- Tray glyph: a bold ring using the whole 32px box, bright enough for a dark taskbar -->
+  <circle cx="16" cy="16" r="12" fill="none" stroke="#A3A3FF" stroke-opacity="0.45" stroke-width="7"/>
+  <circle cx="16" cy="16" r="12" fill="none" stroke="#A3A3FF" stroke-width="7" stroke-linecap="round"
+          stroke-dasharray="75.4" stroke-dashoffset="24" transform="rotate(-90 16 16)"/>
+</svg>

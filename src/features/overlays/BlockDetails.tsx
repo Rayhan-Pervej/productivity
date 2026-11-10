@@ -1,6 +1,6 @@
 // Details of a tracked block: rename it and manage its steps (subtasks).
 import { useState } from "react";
-import { Check, Play, Plus, Trash2, X } from "lucide-react";
+import { Check, Play, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useApp } from "@/store/app";
 import { dayLabel, fmtDuration } from "@/lib/time";
@@ -25,7 +25,7 @@ export function BlockDetails() {
 
 function Body({ block }: { block: Block | DatedBlock }) {
   const now = useApp((s) => s.now);
-  const { renameBlock, updateBlock, completeBlock, deleteBlock, setView, close } = useApp.getState();
+  const { renameBlock, updateBlock, completeBlock, reopenBlock, deleteBlock, setView, close } = useApp.getState();
   const dayOffset = "dayOffset" in block ? block.dayOffset : 0;
   const isToday = dayOffset === 0;
   const active = isToday && block.status === "planned" && block.start <= now && now < block.end;
@@ -85,6 +85,11 @@ function Body({ block }: { block: Block | DatedBlock }) {
         {isToday && block.status === "planned" && (
           <Button variant="success" onClick={() => { completeBlock(block.id); close(); }}>
             <Check size={15} /> Done
+          </Button>
+        )}
+        {isToday && block.status !== "planned" && (
+          <Button onClick={() => reopenBlock(block.id)}>
+            <RotateCcw size={14} /> {block.status === "done" ? "Mark not done" : "Restore"}
           </Button>
         )}
         {active && (

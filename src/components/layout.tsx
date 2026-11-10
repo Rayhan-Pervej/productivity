@@ -12,7 +12,7 @@ export function TitleBar() {
   const blocks = useApp((s) => s.blocks);
   const open = useApp((s) => s.open);
   const name = useApp((s) => s.settings.name);
-  const { ratio, done, total } = dayProgress(blocks);
+  const { ratio, done, total, steps, stepsDone } = dayProgress(blocks);
 
   // In the desktop app this header is the window's title bar: drag anywhere that isn't a control.
   // Text is pointer-events-none so dragging works on it too.
@@ -42,6 +42,7 @@ export function TitleBar() {
         </div>
         <span className="tabular text-[12px] whitespace-nowrap text-muted">
           {total ? `${done} of ${total} done` : "Nothing tracked today"}
+          {steps > 0 && <span className="text-muted/80"> · {stepsDone}/{steps} steps</span>}
         </span>
       </div>
 

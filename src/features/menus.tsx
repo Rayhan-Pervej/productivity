@@ -1,7 +1,7 @@
 // What the right-click menu offers, by what was clicked. One place for all menu wording and actions.
 import {
   ArrowRight, CalendarClock, CalendarDays, Check, Clock, Inbox, LayoutTemplate, ListChecks, Moon, Play, Plus,
-  Settings, SkipForward, Sparkles, Sunrise, Trash2, Undo2,
+  RotateCcw, Settings, SkipForward, Sparkles, Sunrise, Trash2, Undo2,
 } from "lucide-react";
 import type { MenuItem } from "@/components/ContextMenu";
 import type { Block, Task } from "@/domain/types";
@@ -28,6 +28,13 @@ export function blockMenu(block: Block, opts: { isToday: boolean; editable: bool
           ...(active ? [{ label: "Start focus", icon: <Play size={I} />, onSelect: () => s.setView("focus") }] : []),
           ...(!past ? [{ label: "+10 min", icon: <Clock size={I} />, onSelect: () => s.extendBlock(block.id, 10) }] : []),
         ]
+      : []),
+    ...(opts.isToday && !planned
+      ? [{
+          label: block.status === "done" ? "Mark not done" : "Restore",
+          icon: <RotateCcw size={I} />,
+          onSelect: () => s.reopenBlock(block.id),
+        }]
       : []),
     "separator",
     { label: "Open details", icon: <ListChecks size={I} />, onSelect: () => s.openBlock(block.id) },

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { CalendarDays, Check, Coffee, FlaskConical, Moon, MousePointer2, Plus, RotateCcw, Sun, Sunrise, X } from "lucide-react";
 import { useApp, useCurrent, type NotificationKind } from "@/store/app";
+import { isDesktop, previewNotification } from "@/platform/desktop";
 import { dayProgress, missedBlocks, nextCommitment } from "@/lib/day";
 import { fmtTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -285,10 +286,12 @@ export function DevPanel() {
               </button>
             </div>
 
-            <div className="mt-4 text-[11px] font-semibold tracking-wider text-muted uppercase">Windows notification</div>
+            <div className="mt-4 text-[11px] font-semibold tracking-wider text-muted uppercase">
+              Windows notification {isDesktop && <span className="font-normal tracking-normal normal-case">· real toast</span>}
+            </div>
             <div className="mt-1.5 grid grid-cols-4 gap-1">
               {(["upcoming", "starting", "ending", "missed"] as NotificationKind[]).map((k) => (
-                <button key={k} onClick={() => s.notify(k)} className="rounded-md bg-surface-2 py-1 text-[11px] capitalize hover:text-accent">
+                <button key={k} onClick={() => (isDesktop ? void previewNotification(k) : s.notify(k))} className="rounded-md bg-surface-2 py-1 text-[11px] capitalize hover:text-accent">
                   {k}
                 </button>
               ))}
@@ -299,7 +302,7 @@ export function DevPanel() {
               <Button size="sm" onClick={() => s.open("briefing")}><Sunrise size={13} /> Morning</Button>
               <Button size="sm" onClick={() => s.open("review")}><Moon size={13} /> Evening review</Button>
               <Button size="sm" onClick={() => s.open("catchup")}><Coffee size={13} /> Wake from sleep</Button>
-              <Button size="sm" onClick={() => s.open("tray")}><MousePointer2 size={13} /> Tray</Button>
+              {!isDesktop && <Button size="sm" onClick={() => s.open("tray")}><MousePointer2 size={13} /> Tray</Button>}
               <Button size="sm" onClick={s.restartOnboarding}><RotateCcw size={13} /> First run</Button>
               <Button size="sm" onClick={() => s.setTheme(theme === "dark" ? "light" : "dark")}>
                 {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />} Theme

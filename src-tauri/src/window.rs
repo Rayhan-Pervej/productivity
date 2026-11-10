@@ -13,19 +13,6 @@ pub enum Intent {
 
 pub fn show_main(app: &AppHandle, intent: Option<Intent>) {
     if let Some(window) = app.get_webview_window(MAIN) {
-        // A hidden background-sync page isn't wired for interaction: reload it as a normal page.
-        if !window.is_visible().unwrap_or(true) {
-            if let Ok(mut url) = window.url() {
-                url.set_fragment(match intent {
-                    Some(Intent::QuickAdd) => Some("quick-add"),
-                    None => None,
-                });
-                let _ = window.navigate(url);
-            }
-            let _ = window.show();
-            let _ = window.set_focus();
-            return;
-        }
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
@@ -60,36 +47,4 @@ pub fn show_main(app: &AppHandle, intent: Option<Intent>) {
 
 pub fn is_open(app: &AppHandle) -> bool {
     app.get_webview_window(MAIN).is_some()
-}
-
-/// Load today's plan without showing anything, so the scheduler gets its reminders
-/// (at login and after midnight). The page reports back via `background_sync_done`.
-pub fn background_sync(app: &AppHandle) {
-    if app.get_webview_window(MAIN).is_some() {
-        // Window already loaded: let it roll over to the new day itself.
-        let _ = app.emit_to(MAIN, "refresh-day", ());
-        return;
-    }
-    let built = WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App("index.html#sync".into()))
-        .title("Productivity")
-        .decorations(false)
-        .shadow(true)
-        .inner_size(1120.0, 720.0)
-        .min_inner_size(820.0, 560.0)
-        .center()
-        .visible(false)
-        .build();
-    if let Err(err) = built {
-        eprintln!("background sync failed: {err}");
-    }
-}
-
-/// Close the hidden sync window again, unless the user opened it in the meantime.
-#[tauri::command]
-pub fn background_sync_done(app: AppHandle) {
-    if let Some(window) = app.get_webview_window(MAIN) {
-        if !window.is_visible().unwrap_or(true) {
-            let _ = window.destroy();
-        }
-    }
 }

@@ -1,7 +1,9 @@
 // App state. In the prototype this holds sample data in memory;
 // later each action becomes a typed command to the Rust core.
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { useEffect, useState } from "react";
+import { appStorage, markStorageReady } from "@/platform/storage";
 import type { Area, Block, DatedBlock, InboxItem, Settings, Task, Template, TemplateBlock } from "@/domain/types";
 import { AREAS, TEMPLATES, blocksFromTemplate, h, templateForWeekday } from "@/data/seed";
 import type { Parsed } from "@/lib/parse";
@@ -63,6 +65,8 @@ interface State extends Snapshot {
   undo: () => void;
 
   completeBlock: (id: string) => void;
+  /** Undo "done" or "skip" at any time: the block is planned again. */
+  reopenBlock: (id: string) => void;
   skipBlock: (id: string) => void;
   extendBlock: (id: string, minutes: number) => void;
   toggleSubtask: (blockId: string, subId: string) => void;
@@ -235,6 +239,7 @@ export const useApp = create<State>()(
         },
 
         completeBlock: (id) => change(mapBlock(id, (b) => ({ ...b, status: "done" })), `Done · ${titleOf(id)}`),
+        reopenBlock: (id) => change(mapBlock(id, (b) => ({ ...b, status: "planned" })), `Marked not done · ${titleOf(id)}`),
         skipBlock: (id) => change(mapBlock(id, (b) => ({ ...b, status: "skipped" })), `Skipped · ${titleOf(id)}`),
         extendBlock: (id, minutes) =>
           change(mapBlock(id, (b) => ({ ...b, end: b.end + minutes })), `+${minutes} min · ${titleOf(id)}`),
@@ -432,6 +437,11 @@ export const useApp = create<State>()(
     },
     {
       name: "productivity-prototype",
+      // Desktop: the SQLite database in the Rust core. Browser (dev): localStorage.
+      storage: createJSONStorage(() => appStorage),
+      onRehydrateStorage: () => (_state, error) => {
+        if (!error) markStorageReady();
+      },
       version: 3,
       // v3 removed the sample data: drop any saved day (it may contain samples) but keep your setup.
       migrate: (persisted, version) => {
@@ -445,7 +455,7 @@ export const useApp = create<State>()(
       // (Moves to SQLite in the Rust core; localStorage is the bridge until then.)
       partialize: (s) => ({
         settings: s.settings, onboarded: s.onboarded, theme: s.theme, templates: s.templates,
-        activeTemplateId: s.activeTemplateId, dayKey: s.dayKey,
+        activeTemplateId: s.activeTemplateId, dayKey: s.dayKey, areas: s.areas,
         blocks: s.blocks, anytime: s.anytime, inbox: s.inbox, backlog: s.backlog, upcoming: s.upcoming,
       }),
       merge: (persisted, current) => {
@@ -460,6 +470,28 @@ export const useApp = create<State>()(
     },
   ),
 );
+
+/** True once the saved state has been loaded (from the database on desktop). */
+export function useHydrated() {
+  const [hydrated, setHydrated] = useState(() => useApp.persist.hasHydrated());
+  useEffect(() => {
+    const unsubscribe = useApp.persist.onFinishHydration(() => setHydrated(true));
+    setHydrated(useApp.persist.hasHydrated());
+    return unsubscribe;
+  }, []);
+  return hydrated;
+}
+
+/** Resolves once the saved state has been loaded. */
+export function whenHydrated() {
+  return new Promise<void>((resolve) => {
+    if (useApp.persist.hasHydrated()) return resolve();
+    const unsubscribe = useApp.persist.onFinishHydration(() => {
+      unsubscribe();
+      resolve();
+    });
+  });
+}
 
 export const useCurrent = () => {
   const blocks = useApp((s) => s.blocks);

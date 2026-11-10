@@ -10,7 +10,7 @@
   --surface-2: #f0f0ee;
   --border: #e6e6e3;
   --text: #1a1a1c;
-  --text-muted: #6b6b70;
+  --text-muted: #5e5e66;
   --accent: #5b5bd6;
   --accent-fg: #ffffff;
   --success: #2f9e6e;
@@ -26,7 +26,7 @@
   --surface-2: #232327;
   --border: #2c2c31;
   --text: #ededef;
-  --text-muted: #9a9aa2;
+  --text-muted: #a9a9b3;
   --accent: #8b8bf5;
   --accent-fg: #141416;
   --success: #4cc38a;
@@ -112,6 +112,13 @@
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
   }
+}
+
+/* A block becoming done: a gentle lift and settle. */
+@keyframes done-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.018); box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 35%, transparent); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 transparent; }
 }
 
 @media (prefers-reduced-motion: reduce) {

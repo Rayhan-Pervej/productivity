@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { getAutostart, isDesktop, setAutostart } from "@/platform/desktop";
-import { ArrowRight, Check, ChevronDown, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { dataInfo, exportData, getAutostart, isDesktop, setAutostart, type DataInfo } from "@/platform/desktop";
+import { ArrowRight, Check, ChevronDown, Download, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useApp } from "@/store/app";
 import type { Template } from "@/domain/types";
@@ -271,6 +271,8 @@ export function SettingsView() {
         ))}
       </div>
 
+      <DataSettings />
+
       <SectionLabel className="mt-10">System</SectionLabel>
       <SettingsGroup className="mt-3">
         <SettingRow label="Quick add shortcut">
@@ -307,5 +309,53 @@ function AutostartToggle() {
         setAutostart(v).catch(() => setOn(!v));
       }}
     />
+  );
+}
+
+/** Where your data lives, daily backups, and export. Desktop app only. */
+function DataSettings() {
+  const say = useApp((s) => s.say);
+  const [info, setInfo] = useState<DataInfo | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (isDesktop) dataInfo().then(setInfo).catch(() => setInfo(null));
+  }, []);
+  if (!isDesktop) return null;
+
+  return (
+    <>
+      <SectionLabel className="mt-10">Your data</SectionLabel>
+      <SettingsGroup className="mt-3">
+        <SettingRow label="Stored on this PC">
+          <span className="max-w-[280px] truncate text-[12px] text-muted" title={info?.dbPath}>
+            {info?.dbPath ?? "…"}
+          </span>
+        </SettingRow>
+        <SettingRow label="Automatic backups">
+          <span className="text-[12.5px] text-muted" title={info?.backupsDir}>
+            Daily · last 14 days kept
+          </span>
+        </SettingRow>
+        <SettingRow label="Export everything (JSON)">
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                const path = await exportData();
+                say(`Exported to ${path}`);
+              } catch {
+                say("Export failed. Please try again.");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <Download size={13} /> Export
+          </Button>
+        </SettingRow>
+      </SettingsGroup>
+    </>
   );
 }

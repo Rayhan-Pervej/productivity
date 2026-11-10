@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useDismiss } from "@/lib/useDismiss";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useApp } from "@/store/app";
@@ -14,22 +15,7 @@ export function DayPicker({ selected, onPick }: { selected: number; onPick: (off
   const root = useRef<HTMLDivElement>(null);
 
   // Close on outside click or Esc (Esc must not also leave the Today view).
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => root.current && !root.current.contains(e.target as Node) && setOpen(false);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey, true);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey, true);
-    };
-  }, [open]);
+  useDismiss(open, () => setOpen(false), [root]);
 
   return (
     <div ref={root} className="relative">

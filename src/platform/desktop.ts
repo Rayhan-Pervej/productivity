@@ -1,62 +1,20 @@
 // Bridge between the UI and the Rust core (only active inside the Tauri desktop app).
-//  - keeps the Rust scheduler's reminder list in sync with today's plan
-//  - applies notification actions (Done / Skip / +10 min): including ones taken while the window was closed
-//  - opens quick add when the global shortcut is pressed
+// The data lives in SQLite (see platform/storage.ts) and Rust computes reminders from it.
+// This bridge only:
+//  - applies notification actions (Done / Skip / +10 min…), including ones taken while the window was closed
+//  - reloads when Rust starts a new day while the window is open
+//  - opens quick add from the global shortcut
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useApp } from "@/store/app";
-import { fmtTime, inQuietHours } from "@/lib/time";
+import { useApp, whenHydrated } from "@/store/app";
+import { fmtTime } from "@/lib/time";
+import { isDesktop } from "./env";
 
-export const isDesktop = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-
-interface Reminder {
-  id: string;
-  blockId: string;
-  kind: "upcoming" | "starting" | "ending";
-  title: string;
-  body: string;
-  at: number;
-}
+export { isDesktop };
 
 interface Action {
   blockId: string;
-  action: "done" | "skip" | "extend" | "focus" | "catchup";
-}
-
-/** One minute after the next local midnight, epoch ms. */
-const nextMidnight = () => {
-  const d = new Date();
-  d.setHours(24, 1, 0, 0);
-  return d.getTime();
-};
-
-/** Minutes-from-midnight today → epoch ms. */
-const atToday = (minute: number) => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.getTime() + Math.round(minute * 60_000);
-};
-
-
-/** Reminders for today's tracked blocks (background blocks never remind). */
-export function buildReminders(): Reminder[] {
-  const { blocks, areas, settings } = useApp.getState();
-  const now = Date.now();
-  const out: Reminder[] = [];
-
-  for (const b of blocks) {
-    if (b.kind !== "commitment" || b.status !== "planned") continue;
-    const area = areas.find((a) => a.id === b.areaId)?.name ?? "";
-    const span = `${fmtTime(b.start)} – ${fmtTime(b.end)}`;
-    const add = (kind: Reminder["kind"], minute: number, title: string, body: string) => {
-      if (inQuietHours(minute, settings.quietFrom, settings.quietTo)) return;
-      out.push({ id: `${b.id}:${kind}:${minute}`, blockId: b.id, kind, title, body, at: atToday(minute) });
-    };
-    if (settings.leadMinutes > 0) add("upcoming", b.start - settings.leadMinutes, b.title, `Starts in ${settings.leadMinutes} min · ${span}`);
-    add("starting", b.start, `Time for ${area || b.title}`, b.title);
-    add("ending", b.end, `${area || "Your"} block is ending`, `Is ${b.title} done?`);
-  }
-  return out.filter((r) => r.at > now);
+  action: "done" | "skip" | "extend" | "tomorrow" | "backlog" | "focus" | "catchup";
 }
 
 function apply(a: Action) {
@@ -75,6 +33,10 @@ function apply(a: Action) {
     case "focus":
       s.setView("focus");
       break;
+    case "tomorrow":
+    case "backlog":
+      if (exists) s.triage(a.blockId, a.action);
+      break;
     case "catchup":
       s.open("catchup");
       break;
@@ -82,32 +44,15 @@ function apply(a: Action) {
 }
 
 export async function startDesktopBridge() {
-  // 1. Notification actions taken while the window was closed (e.g. "Done"): apply them first,
-  //    so they're saved even if this is only the hidden background load.
+  // Actions must apply to the real (loaded) state, never to the empty startup state.
+  await whenHydrated();
+
+  // 1. Notification actions taken while the window was closed, then live ones.
   const pending = await invoke<Action[]>("take_pending_actions").catch(() => [] as Action[]);
   pending.forEach(apply);
   await listen<Action>("reminder-action", (e) => apply(e.payload));
 
-  // 2. Keep reminders in sync (debounced; only when the plan or settings change).
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const push = () => invoke("set_reminders", { reminders: buildReminders(), refreshAt: nextMidnight() });
-  const sync = () => {
-    clearTimeout(timer);
-    timer = setTimeout(() => void push().catch(console.error), 300);
-  };
-
-  // Hidden background load (login / midnight): hand over reminders, then let Rust close the window.
-  if (location.hash === "#sync") {
-    await push().catch(console.error);
-    await invoke("background_sync_done").catch(console.error);
-    return;
-  }
-  sync();
-  useApp.subscribe((s, prev) => {
-    if (s.blocks !== prev.blocks || s.settings !== prev.settings) sync();
-  });
-
-  // A new day started while the window was open: reload so the plan rolls over.
+  // 2. Rust started a new day while the window was open: reload to show it.
   await listen("refresh-day", () => location.reload());
 
   // 3. Global quick-add shortcut.
@@ -118,5 +63,42 @@ export async function startDesktopBridge() {
   }
 }
 
+/**
+ * Dev tool: send a real Windows notification now, for the block the UI would use
+ * (using the simulated clock), so notification buttons can be tested end to end.
+ */
+export async function previewNotification(kind: "upcoming" | "starting" | "ending" | "missed") {
+  const s = useApp.getState();
+  const tracked = s.blocks.filter((b) => b.kind === "commitment" && b.status === "planned");
+  const current = tracked.find((b) => b.start <= s.now && s.now < b.end);
+  const target =
+    kind === "upcoming" ? tracked.filter((b) => b.start > s.now).sort((a, b) => a.start - b.start)[0]
+    : kind === "missed" ? tracked.filter((b) => b.end <= s.now).sort((a, b) => a.start - b.start)[0]
+    : current;
+  if (!target) {
+    s.say(`No block fits a "${kind}" notification at ${fmtTime(s.now)}. Move the prototype clock.`);
+    return;
+  }
+  const area = s.areas.find((a) => a.id === target.areaId)?.name ?? "";
+  const span = `${fmtTime(target.start)} – ${fmtTime(target.end)}`;
+  const text: Record<typeof kind, [string, string]> = {
+    upcoming: [target.title, `Starts in ${s.settings.leadMinutes} min · ${span}`],
+    starting: [`Time for ${area || target.title}`, target.title],
+    ending: [`${area || "Your"} block is ending`, `Is ${target.title} done?`],
+    missed: [`${target.title} didn't happen`, "Want to find it a new spot?"],
+  };
+  const [title, body] = text[kind];
+  await invoke("preview_notification", {
+    reminder: { id: `preview:${kind}:${Date.now()}`, blockId: target.id, kind, title, body, at: Date.now() },
+  });
+}
+
 export const setAutostart = (enabled: boolean) => invoke("set_autostart", { enabled });
 export const getAutostart = () => invoke<boolean>("get_autostart");
+
+export interface DataInfo {
+  dbPath: string;
+  backupsDir: string;
+}
+export const exportData = () => invoke<string>("export_data");
+export const dataInfo = () => invoke<DataInfo>("data_info");

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { useApp } from "@/store/app";
+import { useApp, useHydrated } from "@/store/app";
+import { SAVE_ERROR_EVENT } from "@/platform/storage";
 import { isTyping } from "@/lib/utils";
 import { setTimeFormat } from "@/lib/time";
 import { isDesktop } from "@/platform/desktop";
@@ -22,6 +23,7 @@ import { DevPanel, NotificationPreview, Toaster, TrayPopover } from "@/features/
 export default function App() {
   const view = useApp((s) => s.view);
   const onboarded = useApp((s) => s.onboarded);
+  const hydrated = useHydrated();
   // Re-render everything when the clock format changes (formatters read it at render time).
   const timeFormat = useApp((s) => s.settings.timeFormat);
   setTimeFormat(timeFormat);
@@ -29,8 +31,12 @@ export default function App() {
   useTheme();
   useShortcuts();
   useAppMenu();
+  useSaveErrors();
 
-  // First run: show only the setup: never the dashboard behind it.
+  // Loading the saved state (a few ms from the database): show nothing rather than a wrong screen.
+  if (!hydrated) return null;
+
+  // First run: show only the setup, never the dashboard behind it.
   if (!onboarded) {
     return (
       <MotionConfig reducedMotion="user">
@@ -81,6 +87,15 @@ export default function App() {
       {import.meta.env.DEV && <DevPanel />}
     </MotionConfig>
   );
+}
+
+/** If saving ever fails, say so (never fail silently with someone's data). */
+function useSaveErrors() {
+  useEffect(() => {
+    const onError = () => useApp.getState().say("Couldn't save your last change. Retrying on the next one.");
+    window.addEventListener(SAVE_ERROR_EVENT, onError);
+    return () => window.removeEventListener(SAVE_ERROR_EVENT, onError);
+  }, []);
 }
 
 /** Right-click anywhere not handled by a component: the app menu instead of the browser's. */

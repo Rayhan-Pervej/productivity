@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useDismiss } from "@/lib/useDismiss";
 import { ArrowRight, CalendarClock, Check, ChevronDown, Moon, Play, RefreshCw, Sparkles, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useApp, useCurrent, type Triage } from "@/store/app";
@@ -277,10 +278,12 @@ function TaskRow({ task }: { task: Task }) {
   const toggle = useApp((s) => s.toggleTask);
   const deleteTask = useApp((s) => s.deleteTask);
   const [menu, setMenu] = useState(false);
+  const row = useRef<HTMLDivElement>(null);
+  useDismiss(menu, () => setMenu(false), [row]);
   const meta = task.due ? `Due ${task.due.toLowerCase()}` : task.type === "habit" ? "Daily" : task.duration ? fmtDuration(task.duration) : "";
 
   return (
-    <div className="relative">
+    <div ref={row} className="relative">
       <div
         className="group flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-surface"
         onContextMenu={(e) => !wantsNativeMenu(e.nativeEvent) && showMenu(e, taskMenu(task))}

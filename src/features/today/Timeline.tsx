@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Clock, Play, Plus, SkipForward, Trash2 } from "lucide-react";
+import { motion } from "motion/react";
+import { Check, Clock, Play, Plus, RotateCcw, SkipForward, Trash2 } from "lucide-react";
 import { useApp } from "@/store/app";
 import type { Block } from "@/domain/types";
 import { dayPhrase, fmtDuration, fmtTime } from "@/lib/time";
@@ -40,6 +41,15 @@ function neededHeight(b: Block) {
 /** Width kept for a background band's label when tasks sit on top of it. */
 const NEST_INSET = 148;
 
+/**
+ * Height for tracked time: the first hour at full scale (72 px), longer stretches grow more slowly,
+ * so a 4-hour block doesn't become a tall empty card. Steps still get their room (see neededHeight).
+ */
+function trackedHeight(minutes: number) {
+  const full = Math.min(minutes, 60) * PX_PER_MIN;
+  return full + Math.max(0, minutes - 60) * 0.45;
+}
+
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 function buildScale(blocks: Block[], now: number, readOnly: boolean) {
@@ -73,7 +83,7 @@ function buildScale(blocks: Block[], now: number, readOnly: boolean) {
       kind === "commitment"
         ? Math.max(
             30,
-            dur * PX_PER_MIN,
+            trackedHeight(dur),
             // A block with steps gets room to show them, however short it is.
             // Its extra height is shared across its segments in proportion to time.
             ...covering.map((b) => (neededHeight(b) * dur) / (b.end - b.start)),
@@ -166,7 +176,7 @@ export function Timeline({
                   className="group absolute right-0 left-2 flex items-center gap-2 rounded-xl border border-dashed border-transparent px-4 text-[12px] text-muted transition-colors hover:border-border hover:bg-surface/60"
                   style={{ top, height }}
                 >
-                  <span className="opacity-70">Free · {fmtDuration(s.to - from)}</span>
+                  <span>Free · {fmtDuration(s.to - from)}</span>
                   <span className="ml-auto flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                     <Plus size={13} /> Plan something
                   </span>
@@ -249,7 +259,7 @@ function TimelineBlock({
   onAddAt: (minute: number, areaId?: string) => void; unmap: (y: number) => number; map: (minute: number) => number;
 }) {
   const area = useArea(block.areaId);
-  const { completeBlock, skipBlock, extendBlock, setView, openBlock, deleteBlock } = useApp.getState();
+  const { completeBlock, reopenBlock, skipBlock, extendBlock, setView, openBlock, deleteBlock } = useApp.getState();
   // Future days are read-only, except for things you added to them yourself.
   const deletable = !readOnly || "dayOffset" in block;
   const color = area?.color ?? "#888";
@@ -258,6 +268,19 @@ function TimelineBlock({
 
   const active = now >= 0 && block.start <= now && now < block.end;
   const past = now >= 0 && block.end <= now;
+
+  // A short "pop" when a block becomes done (not on every render or reload).
+  const prevStatus = useRef(block.status);
+  const [celebrate, setCelebrate] = useState(false);
+  useEffect(() => {
+    if (prevStatus.current !== "done" && block.status === "done") {
+      setCelebrate(true);
+      const t = setTimeout(() => setCelebrate(false), 650);
+      prevStatus.current = block.status;
+      return () => clearTimeout(t);
+    }
+    prevStatus.current = block.status;
+  }, [block.status]);
 
   // Tracked blocks inside a background band float on top of it, leaving the band's label visible.
   const base = nested ? 8 + NEST_INSET : 8;
@@ -299,16 +322,16 @@ function TimelineBlock({
       onContextMenu={(e) => {
         if (!wantsNativeMenu(e.nativeEvent)) showMenu(e, blockMenu(block, { isToday: !readOnly, editable: deletable }));
       }}
-      onClick={() =>
-        deletable
-          ? openBlock(block.id)
-          : useApp.getState().say("This comes from your plan. Change it in Plans.")
-      }
+      onClick={() => {
+        if (deletable) openBlock(block.id);
+        else useApp.getState().say("This comes from your plan. Change it in Plans.");
+      }}
       title={deletable ? "Open details · edit, add steps" : "From your plan. Edit it in Plans."}
      
       className={cn(
         "group absolute z-[1] overflow-hidden rounded-xl transition-all duration-200",
-        deletable ? "cursor-pointer" : "cursor-help",
+        deletable ? "cursor-pointer hover:-translate-y-px hover:shadow-soft" : "cursor-help",
+        celebrate && "animate-[done-pop_650ms_ease-out]",
         active && "z-10 shadow-soft ring-2",
         (missed || skipped) && "border border-dashed border-border",
         (done || skipped) && "opacity-55 hover:opacity-100",
@@ -326,7 +349,11 @@ function TimelineBlock({
 
       <div className={cn("flex h-full gap-1.5 pr-2 pl-4", compact ? "items-center" : "flex-col justify-start pt-2.5")}>
         <div className="flex w-full min-w-0 items-center gap-2">
-          {done && <Check size={14} className="shrink-0 text-success" />}
+          {done && (
+            <motion.span initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}>
+              <Check size={14} className="shrink-0 text-success" />
+            </motion.span>
+          )}
           <span className="text-[11.5px] font-medium" style={{ color }}>
             {area?.name}
           </span>
@@ -360,6 +387,13 @@ function TimelineBlock({
               {!past && <IconAction label="+10 min" onClick={() => extendBlock(block.id, 10)} icon={<Clock size={14} />} />}
               <IconAction label="Skip" onClick={() => skipBlock(block.id)} icon={<SkipForward size={14} />} />
             </>
+          )}
+          {!readOnly && block.status !== "planned" && (
+            <IconAction
+              label={block.status === "done" ? "Mark not done" : "Restore"}
+              onClick={() => reopenBlock(block.id)}
+              icon={<RotateCcw size={14} />}
+            />
           )}
           <IconAction label="Delete" danger onClick={() => deleteBlock(block.id)} icon={<Trash2 size={14} />} />
         </div>
@@ -521,7 +555,11 @@ function StepList({ block, color, height, editable }: { block: Block; color: str
             className="grid size-4 shrink-0 place-items-center rounded-full border-[1.5px] transition-all duration-200 hover:scale-110 disabled:hover:scale-100"
             style={t.done ? { background: color, borderColor: color } : { borderColor: tint(color, 60) }}
           >
-            {t.done && <Check size={10} strokeWidth={3.5} className="text-white" />}
+            {t.done && (
+              <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 600, damping: 20 }}>
+                <Check size={10} strokeWidth={3.5} className="text-white" />
+              </motion.span>
+            )}
           </button>
           <span
             className={cn(

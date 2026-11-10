@@ -32,10 +32,26 @@ export function unresolvedBlocks(blocks: Block[]) {
 }
 
 /** Progress counts only commitments: the things you chose to do. */
+/**
+ * Progress over tracked blocks. Steps make it finer-grained: a block with steps contributes one unit
+ * per step (all of them count once the block is marked done); a block without steps is one unit.
+ */
 export function dayProgress(blocks: Block[]) {
   const counted = blocks.filter((b) => isCommitment(b) && b.status !== "skipped");
   const done = counted.filter((b) => b.status === "done").length;
-  return { done, total: counted.length, ratio: counted.length ? done / counted.length : 0 };
+  let units = 0;
+  let unitsDone = 0;
+  let steps = 0;
+  let stepsDone = 0;
+  for (const b of counted) {
+    const n = b.subtasks.length;
+    const d = b.status === "done" ? n : b.subtasks.filter((t) => t.done).length;
+    steps += n;
+    stepsDone += d;
+    units += n || 1;
+    unitsDone += n ? d : b.status === "done" ? 1 : 0;
+  }
+  return { done, total: counted.length, steps, stepsDone, ratio: units ? unitsDone / units : 0 };
 }
 
 export function overlapping(blocks: Block[], start: number, end: number) {

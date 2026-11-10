@@ -10,11 +10,12 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Open Today", true, None::<&str>)?;
     let quick = MenuItem::with_id(app, "quick", "Quick add\tCtrl+Alt+Space", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
-    let quit = MenuItem::with_id(app, "quit", "Quit Productivity", true, None::<&str>)?;
+    let name = crate::app_name::get(app);
+    let quit = MenuItem::with_id(app, "quit", format!("Quit {name}"), true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&open, &quick, &separator, &quit])?;
 
     let mut tray = TrayIconBuilder::with_id("main")
-        .tooltip("Productivity")
+        .tooltip(&name)
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {

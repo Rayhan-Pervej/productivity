@@ -9,6 +9,7 @@ import { isDesktop, previewNotification } from "@/platform/desktop";
 import { dayProgress, missedBlocks, nextCommitment } from "@/lib/day";
 import { fmtTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import { APP_NAME } from "@/config";
 import { AreaDot, Button, Kbd, ProgressRing, useArea } from "@/components/ui";
 import type { Block } from "@/domain/types";
 
@@ -131,7 +132,7 @@ function ToastHeader() {
   return (
     <div className="flex items-center gap-2 text-[11.5px] text-muted">
       <span className="grid size-4 place-items-center rounded bg-accent text-[9px] font-bold text-accent-fg">P</span>
-      Productivity
+      {APP_NAME}
       <button onClick={close} className="ml-auto hover:text-text" aria-label="Dismiss">
         <X size={14} />
       </button>

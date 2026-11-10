@@ -1,5 +1,5 @@
 //! Registers the app's notification identity with Windows (per user, no admin needed),
-//! so toasts show "Productivity" and its icon instead of a borrowed sender like PowerShell.
+//! so toasts show the app's name and icon instead of a borrowed sender like PowerShell.
 //! Works for both the dev build and the installed app.
 
 #[cfg(windows)]
@@ -8,7 +8,7 @@ pub fn register(app: &tauri::AppHandle) -> Option<String> {
     use winreg::{enums::HKEY_CURRENT_USER, RegKey};
 
     let aumid = app.config().identifier.clone();
-    let name = app.config().product_name.clone().unwrap_or_else(|| "Productivity".into());
+    let name = crate::app_name::get(app);
 
     // Windows needs the icon as a file on disk.
     let dir = app.path().app_data_dir().ok()?;

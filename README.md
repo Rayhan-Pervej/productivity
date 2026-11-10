@@ -1,15 +1,25 @@
-# Productivity
+# Wholeday
+
+> To rename the app, change `productName` in `src-tauri/tauri.conf.json`. Everything visible reads it from there.
+> The internal identifier (`app.productivity.desktop`) stays fixed, because the database, backups and Windows registrations are tied to it.
 
 A calm, always-running desktop day planner: plans your day with you, tells you what to do now,
 adapts when plans break, and shows your progress. Product docs live in [docs/](docs/README.md).
 
 ## Status
 
-**v0.1 in progress.** The full UI is done. The desktop core (Tauri + Rust) runs: tray, start with
-Windows, global quick-add shortcut, and a reminder scheduler with native notifications.
-Next: SQLite storage in the Rust core.
+**v0.1, usable daily.** Full UI, desktop core and database are done:
 
-Run the desktop app with `pnpm tauri dev`, or build the installer with `pnpm tauri build`.
+- **Desktop (Tauri + Rust):** tray, start with Windows, global quick add (Ctrl+Alt+Space), native notifications with actions.
+- **Data (SQLite in Rust):** `%APPDATA%\app.productivity.desktop\productivity.db`, daily backups in `backups\` (14 kept), export to JSON in Settings.
+- **Rust owns the day:** rolls over at midnight and computes reminders from the database, even when no window is open.
+
+```bash
+pnpm tauri dev     # desktop app, development
+pnpm tauri build   # installer in src-tauri/target/release/bundle/nsis
+pnpm test          # UI logic tests (Vitest)
+cd src-tauri && cargo test   # data/core tests (Rust)
+```
 
 ## Run the UI
 

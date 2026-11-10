@@ -28,7 +28,7 @@ pub fn show_main(app: &AppHandle, intent: Option<Intent>) {
         None => "index.html",
     };
     let built = WebviewWindowBuilder::new(app, MAIN, WebviewUrl::App(path.into()))
-        .title("Productivity")
+        .title(crate::app_name::get(app))
         // The app header is the title bar (logo, drag area, caption buttons).
         .decorations(false)
         .shadow(true)

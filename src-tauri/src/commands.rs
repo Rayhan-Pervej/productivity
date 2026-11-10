@@ -44,7 +44,8 @@ pub fn export_data(app: AppHandle, db: State<'_, Db>) -> Result<String, String> 
         .download_dir()
         .or_else(|_| app.path().document_dir())
         .map_err(|e| e.to_string())?;
-    let path = dir.join(format!("productivity-export-{today}.json"));
+    let slug = crate::app_name::get(&app).to_lowercase().replace(' ', "-");
+    let path = dir.join(format!("{slug}-export-{today}.json"));
     let text = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?;
     std::fs::write(&path, text).map_err(|e| e.to_string())?;
     Ok(path.to_string_lossy().into_owned())

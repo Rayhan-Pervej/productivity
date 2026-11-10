@@ -18,6 +18,11 @@
 | D-012 | 2026-11-10 | Simple "What should I do?" suggestion moves into v0.1 (due today → habits → fits free time); smart engine stays v0.2 | It is the user's core pain; v0.1 without it doesn't solve the problem |
 | D-013 | 2026-11-10 | Adaptive timeline where space follows importance: tracked blocks full height, background compressed, past gaps shrink, upcoming free gaps plannable | Office took 60% of the screen while the evening (where the user gets stuck) was squeezed |
 | D-014 | 2026-11-10 | Free time ends at the next block of any kind | Suggesting "free for 13h" before office is wrong |
+| D-015 | 2026-11-11 | SQLite via **rusqlite** (bundled), not sqlx | Local single-user database: synchronous calls are simpler and faster to build; sqlx's async and compile-time checks add little here |
+| D-016 | 2026-11-11 | Rust owns the data and the day; the UI keeps its logic and saves a snapshot after each change, which Rust writes into normalized tables (only changed rows are touched) | Real database now without rewriting all UI logic; Rust rolls the day over and computes reminders from the database, so no hidden window is needed at login or midnight |
+| D-017 | 2026-11-11 | Blocks stored by real date (`day`), soft delete everywhere, append-only `activity` log | Sync-ready and keeps history for the future weekly review and insights |
+| D-019 | 2026-11-11 | Name: **Wholeday**. Single source of truth: `productName` in tauri.conf.json (UI gets it at build time); internal identifier unchanged | Easy to rename later without losing data or Windows registrations |
+| D-018 | 2026-11-11 | Daily automatic backup (`VACUUM INTO`, last 14 kept) and JSON export in Settings | Never lose data; never be locked in |
 
 ## Tech stack: **chosen (D-007)**, background-process footprint to be verified by a measurement spike
 

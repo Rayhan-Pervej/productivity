@@ -1,4 +1,4 @@
-# Productivity App: Documentation
+# Wholeday: Documentation
 
 > Working name. A lightweight, always-running desktop app that plans your day with you,
 > tells you what to do *now*, adapts when life happens, and shows you how you're doing.

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isDesktop } from "@/platform/desktop";
 import { cn } from "@/lib/utils";
+import { APP_NAME } from "@/config";
 
 /** The app mark: a calm progress ring. Same artwork as the app/taskbar icon. */
 export function AppLogo({ size = 20, className }: { size?: number; className?: string }) {
@@ -79,7 +80,7 @@ export function DragBar() {
   return (
     <div data-tauri-drag-region className="fixed top-0 right-0 left-0 z-[80] flex h-10 items-center pl-4">
       <AppLogo size={16} className="pointer-events-none" />
-      <span className="pointer-events-none ml-2 text-[12px] text-muted">Productivity</span>
+      <span className="pointer-events-none ml-2 text-[12px] text-muted">{APP_NAME}</span>
       <WindowControls className="ml-auto" />
     </div>
   );

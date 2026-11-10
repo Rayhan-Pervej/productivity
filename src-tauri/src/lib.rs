@@ -5,6 +5,7 @@
 //! - The scheduler sleeps until the next reminder instead of polling every second.
 //! - Rust owns the day: it rolls over and computes reminders from the database, with no window needed.
 
+mod app_name;
 mod commands;
 mod db;
 mod identity;

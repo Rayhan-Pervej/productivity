@@ -14,7 +14,8 @@ export const setTimeFormat = (f: TimeFormat) => {
 
 /** 1290 → "21:30" (24h) or "9:30 PM" (12h) */
 export function fmtTime(min: number) {
-  const m = Math.round(min);
+  // Round down, like a clock: 8:41:40 is still 8:41.
+  const m = Math.floor(min + 1e-6);
   const h = Math.floor(m / 60) % 24;
   if (timeFormat === "24h") return `${pad(h)}:${pad(m % 60)}`;
   return `${h % 12 || 12}:${pad(m % 60)} ${h < 12 ? "AM" : "PM"}`;
@@ -84,4 +85,27 @@ export function dayPhrase(offset: number) {
 export function inQuietHours(minute: number, from: number, to: number) {
   const m = ((minute % 1440) + 1440) % 1440;
   return from <= to ? m >= from && m < to : m >= from || m < to;
+}
+
+/** Local calendar day as "2026-11-30". */
+export function isoDay(d: Date = new Date()) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** The local date `offset` days from today. */
+export function dateOf(offset: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d;
+}
+
+/** "2026-11-30" → "Nov 30" (adds the year only when it isn't this year). */
+export function shortDate(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(y !== new Date().getFullYear() ? { year: "numeric" } : {}),
+  });
 }

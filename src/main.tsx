@@ -5,6 +5,7 @@ import "./styles/globals.css";
 import { useApp, type Overlay, type Theme, type View } from "./store/app";
 import { parseQuickAdd } from "./lib/parse";
 import { isDesktop, startDesktopBridge } from "./platform/desktop";
+import { revealWhenReady } from "./platform/reveal";
 
 // Dev-only deep links for reviewing states, e.g. /?ob=1&t=21:25&theme=dark&view=focus&overlay=review
 if (import.meta.env.DEV) {
@@ -56,6 +57,13 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).get("menu")) {
     const x = r.left + Math.min(220, r.width / 2);
     const y = r.top + Math.min(40, r.height / 2);
     target.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+    // ?submenu=Repeat also hovers that row so its submenu opens
+    const label = new URLSearchParams(location.search).get("submenu");
+    if (label)
+      setTimeout(() => {
+        const row = [...document.querySelectorAll("[role=menuitem]")].find((el) => el.textContent?.startsWith(label));
+        row?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      }, 300);
   }, 600);
 }
 
@@ -73,7 +81,10 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).get("hoverband")
 }
 
 // Inside the desktop app: connect to the Rust core (reminders, tray actions, global shortcut).
-if (isDesktop) void startDesktopBridge();
+if (isDesktop) {
+  void startDesktopBridge();
+  void revealWhenReady();
+}
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

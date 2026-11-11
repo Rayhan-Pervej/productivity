@@ -37,13 +37,14 @@ export function TodayView() {
   const now = useApp((s) => s.now);
   const templates = useApp((s) => s.templates);
   const upcoming = useApp((s) => s.upcoming);
+  const routines = useApp((s) => s.routines);
   const anytime = useApp((s) => s.anytime);
   const open = useApp((s) => s.open);
 
   // Future days follow their weekday's plan, plus anything you added for that day.
   const futureBlocks = useMemo<Block[]>(
-    () => (day === 0 ? [] : blocksForDay(day, [], templates, upcoming)),
-    [day, templates, upcoming],
+    () => (day === 0 ? [] : blocksForDay(day, [], templates, upcoming, routines)),
+    [day, templates, upcoming, routines],
   );
   const futureTasks = anytime.filter((t) => t.dayOffset === day && day > 0);
   const addedCount = (d: number) =>

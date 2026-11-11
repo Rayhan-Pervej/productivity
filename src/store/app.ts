@@ -4,11 +4,12 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { useEffect, useState } from "react";
 import { appStorage, markStorageReady } from "@/platform/storage";
-import type { Area, Block, DatedBlock, InboxItem, Settings, Task, Template, TemplateBlock } from "@/domain/types";
+import type { Area, Block, DatedBlock, InboxItem, Settings, Task, Template, TemplateBlock, Routine, Weekday } from "@/domain/types";
 import { AREAS, TEMPLATES, blocksFromTemplate, h, templateForWeekday } from "@/data/seed";
 import type { Parsed } from "@/lib/parse";
-import { fmtTime, nowMinutes, roundTo, systemTimeFormat } from "@/lib/time";
+import { dateOf, dayLabel, fmtTime, isoDay, nowMinutes, roundTo, systemTimeFormat } from "@/lib/time";
 import { uid } from "@/lib/utils";
+import { blocksFromRoutines, normalizeDays, repeatPhrase, untilPhrase } from "@/lib/repeat";
 import { currentCommitment, currentContext, missedBlocks, nextCommitment } from "@/lib/day";
 
 export type View = "today" | "focus" | "inbox" | "plans" | "settings";
@@ -25,6 +26,8 @@ interface Snapshot {
   /** Blocks planned on future days. */
   upcoming: DatedBlock[];
   templates: Template[];
+  /** Things that repeat on chosen weekdays (Standup on weekdays, IELTS Sun/Tue/Thu...). */
+  routines: Routine[];
 }
 
 interface Toast {
@@ -73,7 +76,9 @@ interface State extends Snapshot {
   addSubtask: (blockId: string, title: string) => void;
   removeSubtask: (blockId: string, subId: string) => void;
   renameBlock: (blockId: string, title: string) => void;
-  updateBlock: (blockId: string, patch: Partial<Pick<Block, "start" | "end" | "areaId">>) => void;
+  updateBlock: (blockId: string, patch: Partial<Pick<Block, "title" | "start" | "end" | "areaId" | "detached">>) => void;
+  /** A future day's copy of a repeat as a real block (created on first use), so it can hold steps and edits. */
+  ensureRoutineCopy: (routineId: string, dayOffset: number) => DatedBlock | undefined;
   /** Block shown in the details window. */
   selectedBlockId: string | null;
   openBlock: (id: string) => void;
@@ -89,6 +94,12 @@ interface State extends Snapshot {
   deleteBlock: (id: string) => void;
   /** Remove an anytime or backlog task. */
   deleteTask: (id: string) => void;
+  addRoutine: (r: Omit<Routine, "id">) => void;
+  updateRoutine: (id: string, patch: Partial<Omit<Routine, "id">>) => void;
+  /** Stop repeating: today's copy stays as a normal block. */
+  stopRoutine: (id: string) => void;
+  /** Make a block repeat on these weekdays (empty or null: stop repeating). */
+  setRepeat: (blockId: string, days: Weekday[] | null) => void;
   backlogToToday: (id: string) => void;
 
   applyTemplate: (id: string) => void;
@@ -130,8 +141,17 @@ const daysSince = (key: string) => {
  * (and arrive when their day comes), finished anytime tasks are cleared.
  * Used both when the app opens on a new day and when midnight passes while it's open.
  */
+/** "2026-11-19" → days from today. */
+const dateOffsetOf = (iso: string) => daysSince(iso) * -1;
+
+/** Today's copies of routines, skipping any routine that already has a block today. */
+function todaysRoutineCopies(routines: Routine[], existing: Block[]) {
+  const have = new Set(existing.map((b) => b.routineId).filter(Boolean));
+  return blocksFromRoutines(routines, new Date()).filter((b) => !have.has(b.routineId));
+}
+
 function rolloverDay(
-  s: Pick<State, "dayKey" | "templates" | "upcoming" | "anytime" | "blocks" | "backlog">,
+  s: Pick<State, "dayKey" | "templates" | "upcoming" | "anytime" | "blocks" | "backlog" | "routines">,
   today: string,
 ): Pick<State, "dayKey" | "activeTemplateId" | "blocks" | "upcoming" | "anytime" | "backlog"> {
   const gap = s.dayKey ? Math.max(1, daysSince(s.dayKey)) : 0;
@@ -148,7 +168,7 @@ function rolloverDay(
   return {
     dayKey: today,
     activeTemplateId: templateId,
-    blocks: [...blocksFor(s.templates, templateId), ...arriving],
+    blocks: [...blocksFor(s.templates, templateId), ...todaysRoutineCopies(s.routines ?? [], arriving), ...arriving],
     upcoming: upcoming.filter((b) => b.dayOffset > 0),
     backlog: [...(s.backlog ?? []), ...unfinished],
     anytime: (s.anytime ?? [])
@@ -165,6 +185,7 @@ export const useApp = create<State>()(
         const s = get();
         const snap: Snapshot = {
           blocks: s.blocks, anytime: s.anytime, inbox: s.inbox, backlog: s.backlog, upcoming: s.upcoming, templates: s.templates,
+          routines: s.routines,
         };
         set({
           ...fn(s),
@@ -194,6 +215,7 @@ export const useApp = create<State>()(
         inbox: [],
         backlog: [],
         upcoming: [],
+        routines: [],
 
         now: nowMinutes(),
         simulated: false,
@@ -333,6 +355,11 @@ export const useApp = create<State>()(
 
         addParsed: (p) => {
           const areaId = p.areaId ?? "personal";
+          if (p.type === "routine" && p.start !== undefined && p.repeat) {
+            return get().addRoutine({
+              title: p.title, areaId, start: p.start, end: p.start + p.duration, days: p.repeat, until: p.until,
+            });
+          }
           if (p.type === "fixed" && p.start !== undefined) {
             const block: Block = {
               id: uid(), title: p.title, areaId, kind: "commitment", start: p.start, end: p.start + p.duration,
@@ -363,13 +390,96 @@ export const useApp = create<State>()(
             };
           }, "Moved to Anytime today"),
         letGoInbox: (id) => change((s) => ({ inbox: s.inbox.filter((i) => i.id !== id) }), "Let go"),
+        addRoutine: (r) => {
+          const routine: Routine = { ...r, id: uid(), days: normalizeDays(r.days) };
+          change(
+            (s) => ({
+              routines: [...s.routines, routine],
+              // If it happens today, today's copy appears right away.
+              blocks: [...s.blocks, ...todaysRoutineCopies([routine], s.blocks)],
+            }),
+            `Repeats ${repeatPhrase(routine.days)} ${untilPhrase(routine.until)} · ${fmtTime(routine.start)}`.replace("  ", " "),
+          );
+        },
+        updateRoutine: (id, patch) =>
+          change(
+            (s) => {
+              const routines = s.routines.map((r) => (r.id === id ? { ...r, ...patch, days: normalizeDays(patch.days ?? r.days) } : r));
+              const r = routines.find((x) => x.id === id);
+              // Every copy follows the repeat, except days you changed "only this day" or already finished.
+              const sync = <T extends Block>(b: T): T =>
+                r && b.routineId === id && b.status === "planned" && !b.detached
+                  ? { ...b, title: r.title, areaId: r.areaId, start: r.start, end: r.end }
+                  : b;
+              return { routines, blocks: s.blocks.map(sync), upcoming: s.upcoming.map(sync) };
+            },
+            patch.days
+              ? `Repeats ${repeatPhrase(normalizeDays(patch.days))}`
+              : "until" in patch
+                ? patch.until
+                  ? `Repeats ${untilPhrase(patch.until)}`
+                  : "Repeats with no end date"
+                : undefined,
+          ),
+        stopRoutine: (id) =>
+          change((s) => {
+            // Today's copy stays (as a normal block); future copies are removed with the repeat.
+            const detach = (b: Block): Block => (b.routineId === id ? { ...b, routineId: undefined, detached: undefined, fromPlan: false } : b);
+            return {
+              routines: s.routines.filter((r) => r.id !== id),
+              blocks: s.blocks.map(detach),
+              upcoming: s.upcoming.filter((b) => b.routineId !== id),
+            };
+          }, "Stopped repeating"),
+        setRepeat: (blockId, days) => {
+          const s = get();
+          const block = s.blocks.find((b) => b.id === blockId) ?? s.upcoming.find((b) => b.id === blockId);
+          if (!block) return;
+          const wanted = days ? normalizeDays(days) : [];
+          if (block.routineId) {
+            if (!wanted.length) return s.stopRoutine(block.routineId);
+            return s.updateRoutine(block.routineId, { days: wanted });
+          }
+          if (!wanted.length) return;
+          // Turn this block into a routine; it becomes that routine's copy for its own day.
+          const routine: Routine = { id: uid(), title: block.title, areaId: block.areaId, start: block.start, end: block.end, days: wanted };
+          const link = <T extends Block>(b: T): T => (b.id === blockId ? { ...b, routineId: routine.id, fromPlan: true } : b);
+          change(
+            (st) => ({ routines: [...st.routines, routine], blocks: st.blocks.map(link), upcoming: st.upcoming.map(link) }),
+            `Repeats ${repeatPhrase(wanted)} · ${fmtTime(block.start)}`,
+          );
+        },
+
         deleteBlock: (id) => {
           const s = get();
-          const title = (s.blocks.find((b) => b.id === id) ?? s.upcoming.find((b) => b.id === id))?.title ?? "";
+          const block = s.blocks.find((b) => b.id === id) ?? s.upcoming.find((b) => b.id === id);
+          const title = block?.title ?? "";
+          // A repeat's copy: remember the day as skipped, so the copy doesn't come back.
+          const day = block?.routineId ? isoDay(dateOf("dayOffset" in block ? (block as DatedBlock).dayOffset : 0)) : undefined;
           change(
-            (st) => ({ blocks: st.blocks.filter((b) => b.id !== id), upcoming: st.upcoming.filter((b) => b.id !== id) }),
-            `Deleted · ${title}`,
+            (st) => ({
+              blocks: st.blocks.filter((b) => b.id !== id),
+              upcoming: st.upcoming.filter((b) => b.id !== id),
+              routines: day
+                ? st.routines.map((r) => (r.id === block!.routineId ? { ...r, skipDays: [...(r.skipDays ?? []), day] } : r))
+                : st.routines,
+            }),
+            day ? `Removed for ${dayLabel(dateOffsetOf(day))} · ${title}` : `Deleted · ${title}`,
           );
+        },
+        ensureRoutineCopy: (routineId, dayOffset) => {
+          const s = get();
+          const existing = s.upcoming.find((b) => b.routineId === routineId && b.dayOffset === dayOffset);
+          if (existing) return existing;
+          const r = s.routines.find((x) => x.id === routineId);
+          if (!r) return undefined;
+          const copy: DatedBlock = {
+            id: uid(), title: r.title, areaId: r.areaId, kind: "commitment", start: r.start, end: r.end,
+            status: "planned", subtasks: [], fromPlan: true, routineId, dayOffset,
+          };
+          // Not an undoable action: an untouched copy looks exactly like the preview it replaces.
+          set({ upcoming: [...s.upcoming, copy] });
+          return copy;
         },
         deleteTask: (id) => {
           const s = get();
@@ -388,7 +498,10 @@ export const useApp = create<State>()(
         applyTemplate: (id) => {
           const template = get().templates.find((t) => t.id === id);
           if (!template) return;
-          change(() => ({ blocks: blocksFromTemplate(template) }), `Using ${template.name} plan today`);
+          change(
+            (st) => ({ blocks: [...blocksFromTemplate(template), ...st.blocks.filter((b) => !b.fromPlan || b.routineId)] }),
+            `Using ${template.name} plan today`,
+          );
           set({ activeTemplateId: id });
         },
         updateTemplateBlock: (templateId, blockId, patch) =>
@@ -420,7 +533,7 @@ export const useApp = create<State>()(
           // Setup (first time or re-run) only changes your plan and settings.
           // Everything you added yourself is kept: tasks, inbox, future days, and today's own blocks.
           const planBlocks = blocksFor(templates, todayPlan.id);
-          const yourBlocks = s.blocks.filter((b) => !b.fromPlan);
+          const yourBlocks = s.blocks.filter((b) => !b.fromPlan || b.routineId);
           set({
             settings,
             templates,
@@ -455,7 +568,7 @@ export const useApp = create<State>()(
       // (Moves to SQLite in the Rust core; localStorage is the bridge until then.)
       partialize: (s) => ({
         settings: s.settings, onboarded: s.onboarded, theme: s.theme, templates: s.templates,
-        activeTemplateId: s.activeTemplateId, dayKey: s.dayKey, areas: s.areas,
+        activeTemplateId: s.activeTemplateId, dayKey: s.dayKey, areas: s.areas, routines: s.routines,
         blocks: s.blocks, anytime: s.anytime, inbox: s.inbox, backlog: s.backlog, upcoming: s.upcoming,
       }),
       merge: (persisted, current) => {

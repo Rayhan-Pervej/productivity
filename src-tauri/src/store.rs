@@ -40,7 +40,30 @@ pub struct Block {
     #[serde(default)]
     pub from_plan: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub routine_id: Option<String>,
+    /// A repeat copy changed "only this day": edits to the repeat don't touch it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub detached: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub day_offset: Option<i64>,
+}
+
+/// Repeats on chosen weekdays (0 = Sunday … 6 = Saturday) at a fixed time.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Routine {
+    pub id: String,
+    pub title: String,
+    pub area_id: String,
+    pub start: f64,
+    pub end: f64,
+    pub days: Vec<u8>,
+    /// Last day it happens, inclusive ("2026-11-30"); none = no end.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub until: Option<String>,
+    /// Days it was removed from (calendar-style exceptions).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub skip_days: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -111,6 +134,8 @@ pub struct State {
     pub inbox: Vec<InboxItem>,
     pub backlog: Vec<Task>,
     pub upcoming: Vec<Block>,
+    #[serde(default)]
+    pub routines: Vec<Routine>,
 }
 
 fn default_theme() -> String {
@@ -193,6 +218,7 @@ pub fn save(conn: &mut Connection, snapshot: &Persisted) -> rusqlite::Result<()>
 
     save_areas(&tx, &s.areas, now)?;
     save_templates(&tx, &s.templates, now)?;
+    save_routines(&tx, &s.routines, now)?;
     save_blocks(&tx, s, now)?;
     save_tasks(&tx, s, now)?;
 
@@ -214,6 +240,56 @@ fn save_areas(tx: &Transaction, areas: &[Area], now: i64) -> rusqlite::Result<()
         )?;
     }
     soft_delete_missing(tx, "areas", "1 = 1", &areas.iter().map(|a| a.id.clone()).collect::<Vec<_>>(), now)
+}
+
+fn days_text(days: &[u8]) -> String {
+    days.iter().map(|d| d.to_string()).collect::<Vec<_>>().join(",")
+}
+
+fn parse_days(text: &str) -> Vec<u8> {
+    text.split(',').filter_map(|d| d.trim().parse().ok()).filter(|d| *d <= 6).collect()
+}
+
+fn save_routines(tx: &Transaction, routines: &[Routine], now: i64) -> rusqlite::Result<()> {
+    for (i, r) in routines.iter().enumerate() {
+        tx.execute(
+            "INSERT INTO routines(id, title, area_id, start_min, end_min, days, until_day, skip_days, sort, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+             ON CONFLICT(id) DO UPDATE SET title = excluded.title, area_id = excluded.area_id,
+               start_min = excluded.start_min, end_min = excluded.end_min, days = excluded.days,
+               until_day = excluded.until_day, skip_days = excluded.skip_days, sort = excluded.sort,
+               updated_at = excluded.updated_at, deleted_at = NULL
+             WHERE routines.title IS NOT excluded.title OR routines.area_id IS NOT excluded.area_id
+               OR routines.start_min IS NOT excluded.start_min OR routines.end_min IS NOT excluded.end_min
+               OR routines.days IS NOT excluded.days OR routines.until_day IS NOT excluded.until_day
+               OR routines.skip_days IS NOT excluded.skip_days
+               OR routines.sort IS NOT excluded.sort OR routines.deleted_at IS NOT NULL",
+            params![r.id, r.title, r.area_id, r.start, r.end, days_text(&r.days), r.until, r.skip_days.join(","), i as i64, now],
+        )?;
+    }
+    soft_delete_missing(tx, "routines", "1 = 1", &routines.iter().map(|r| r.id.clone()).collect::<Vec<_>>(), now)
+}
+
+fn load_routines(conn: &Connection) -> rusqlite::Result<Vec<Routine>> {
+    let mut st = conn.prepare(
+        "SELECT id, title, area_id, start_min, end_min, days, until_day, skip_days FROM routines WHERE deleted_at IS NULL ORDER BY sort",
+    )?;
+    let rows = st.query_map([], |r| {
+        Ok(Routine {
+            id: r.get(0)?,
+            title: r.get(1)?,
+            area_id: r.get(2)?,
+            start: r.get(3)?,
+            end: r.get(4)?,
+            days: parse_days(&r.get::<_, String>(5)?),
+            until: r.get(6)?,
+            skip_days: r
+                .get::<_, Option<String>>(7)?
+                .map(|s| s.split(',').filter(|d| !d.is_empty()).map(String::from).collect())
+                .unwrap_or_default(),
+        })
+    })?;
+    rows.collect()
 }
 
 fn save_templates(tx: &Transaction, templates: &[Template], now: i64) -> rusqlite::Result<()> {
@@ -277,17 +353,19 @@ fn save_blocks(tx: &Transaction, s: &State, now: i64) -> rusqlite::Result<()> {
             _ => {}
         }
         tx.execute(
-            "INSERT INTO blocks(id, day, title, area_id, kind, start_min, end_min, status, from_plan, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            "INSERT INTO blocks(id, day, title, area_id, kind, start_min, end_min, status, from_plan, routine_id, detached, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
              ON CONFLICT(id) DO UPDATE SET day = excluded.day, title = excluded.title, area_id = excluded.area_id,
                kind = excluded.kind, start_min = excluded.start_min, end_min = excluded.end_min,
-               status = excluded.status, from_plan = excluded.from_plan, updated_at = excluded.updated_at, deleted_at = NULL
+               status = excluded.status, from_plan = excluded.from_plan, routine_id = excluded.routine_id,
+               detached = excluded.detached, updated_at = excluded.updated_at, deleted_at = NULL
              WHERE blocks.day IS NOT excluded.day OR blocks.title IS NOT excluded.title
                OR blocks.area_id IS NOT excluded.area_id OR blocks.kind IS NOT excluded.kind
                OR blocks.start_min IS NOT excluded.start_min OR blocks.end_min IS NOT excluded.end_min
                OR blocks.status IS NOT excluded.status OR blocks.from_plan IS NOT excluded.from_plan
+               OR blocks.routine_id IS NOT excluded.routine_id OR blocks.detached IS NOT excluded.detached
                OR blocks.deleted_at IS NOT NULL",
-            params![b.id, day, b.title, b.area_id, b.kind, b.start, b.end, b.status, b.from_plan, now],
+            params![b.id, day, b.title, b.area_id, b.kind, b.start, b.end, b.status, b.from_plan, b.routine_id, b.detached, now],
         )?;
         save_subtasks(tx, b, now)?;
     }
@@ -411,6 +489,7 @@ pub fn load(conn: &Connection, today: &str) -> rusqlite::Result<Option<Value>> {
         rows.collect::<Result<Vec<_>, _>>()?
     };
     let templates = load_templates(conn)?;
+    let routines = load_routines(conn)?;
 
     let mut blocks = Vec::new();
     let mut upcoming = Vec::new();
@@ -470,6 +549,7 @@ pub fn load(conn: &Connection, today: &str) -> rusqlite::Result<Option<Value>> {
             "dayKey": today,
             "blocks": blocks,
             "upcoming": upcoming,
+            "routines": routines,
             "anytime": anytime,
             "backlog": backlog,
             "inbox": inbox,
@@ -514,7 +594,7 @@ fn load_templates(conn: &Connection) -> rusqlite::Result<Vec<Template>> {
 /// Blocks matching `where_day` (one `?1` day parameter), with steps; `day_offset` is days from `today`.
 fn load_blocks(conn: &Connection, where_day: &str, today: &str) -> rusqlite::Result<Vec<Block>> {
     let mut st = conn.prepare(&format!(
-        "SELECT id, day, title, area_id, kind, start_min, end_min, status, from_plan FROM blocks
+        "SELECT id, day, title, area_id, kind, start_min, end_min, status, from_plan, routine_id, detached FROM blocks
          WHERE deleted_at IS NULL AND {where_day} ORDER BY day, start_min"
     ))?;
     let mut blocks = st
@@ -529,6 +609,8 @@ fn load_blocks(conn: &Connection, where_day: &str, today: &str) -> rusqlite::Res
                 end: r.get(6)?,
                 status: r.get(7)?,
                 from_plan: r.get(8)?,
+                routine_id: r.get(9)?,
+                detached: r.get(10)?,
                 day_offset: Some(days_between(today, &day)),
                 subtasks: vec![],
             })
@@ -589,7 +671,7 @@ pub fn ensure_today(conn: &mut Connection, today: NaiveDate) -> rusqlite::Result
 
     // 3. Today's plan: Sat/Sun → Weekend, otherwise Workday (fallback: the first plan).
     let has_plan_blocks: bool = tx.query_row(
-        "SELECT EXISTS(SELECT 1 FROM blocks WHERE deleted_at IS NULL AND from_plan = 1 AND day = ?1)",
+        "SELECT EXISTS(SELECT 1 FROM blocks WHERE deleted_at IS NULL AND from_plan = 1 AND routine_id IS NULL AND day = ?1)",
         [&today_key],
         |r| r.get(0),
     )?;
@@ -620,6 +702,28 @@ pub fn ensure_today(conn: &mut Connection, today: NaiveDate) -> rusqlite::Result
                 )?;
             }
             meta_set(&tx, "active_template_id", &tid)?;
+        }
+    }
+
+    // 4. Today's copies of repeating routines (skipping any already there, e.g. planned for today in advance).
+    let weekday = today.weekday().num_days_from_sunday() as u8;
+    for r in load_routines(&tx)? {
+        let ended = r.until.as_deref().is_some_and(|u| u < today_key.as_str());
+        let skipped = r.skip_days.iter().any(|d| d == &today_key);
+        if !r.days.contains(&weekday) || ended || skipped {
+            continue;
+        }
+        let exists: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM blocks WHERE deleted_at IS NULL AND routine_id = ?1 AND day = ?2)",
+            params![r.id, today_key],
+            |row| row.get(0),
+        )?;
+        if !exists {
+            tx.execute(
+                "INSERT INTO blocks(id, day, title, area_id, kind, start_min, end_min, status, from_plan, routine_id, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, 'commitment', ?5, ?6, 'planned', 1, ?7, ?8)",
+                params![new_id(), today_key, r.title, r.area_id, r.start, r.end, r.id, now],
+            )?;
         }
     }
 
@@ -784,6 +888,7 @@ mod tests {
                     block("mine", "commitment", 600.0, 630.0, false),
                 ],
                 upcoming: vec![Block { day_offset: Some(1), ..block("later", "commitment", 540.0, 570.0, false) }],
+                routines: vec![],
                 anytime: vec![Task { id: "t1".into(), title: "Read".into(), kind: "flexible".into(), ..Default::default() }],
                 inbox: vec![InboxItem { id: "i1".into(), title: "Idea".into() }],
                 backlog: vec![],
@@ -860,6 +965,65 @@ mod tests {
         assert!(titles.contains(&"Block later"));
         // Running it again changes nothing.
         assert!(!ensure_today(&mut conn, d("2026-11-12")).unwrap());
+    }
+
+    #[test]
+    fn routines_round_trip_and_appear_on_their_weekdays() {
+        let mut conn = open_in_memory();
+        let mut snap = snapshot("2026-11-11"); // Wednesday
+        snap.state.routines = vec![Routine {
+            id: "ielts".into(),
+            title: "IELTS class".into(),
+            area_id: "office".into(),
+            start: 1260.0,
+            end: 1320.0,
+            days: vec![0, 2, 4], // Sun, Tue, Thu
+            until: Some("2026-11-17".into()),
+            skip_days: vec!["2026-11-15".into()], // removed on Sunday the 15th
+        }];
+        save(&mut conn, &snap).unwrap();
+        let v = load(&conn, "2026-11-11").unwrap().unwrap();
+        assert_eq!(v["state"]["routines"][0]["days"], json!([0, 2, 4]));
+
+        // Thursday: the class appears, linked to its routine.
+        ensure_today(&mut conn, d("2026-11-12")).unwrap();
+        let thu = load(&conn, "2026-11-12").unwrap().unwrap();
+        let copies: Vec<&Value> = thu["state"]["blocks"].as_array().unwrap().iter().filter(|b| b["routineId"] == "ielts").collect();
+        assert_eq!(copies.len(), 1);
+        assert_eq!(copies[0]["title"], "IELTS class");
+
+        // Friday: no class.
+        ensure_today(&mut conn, d("2026-11-13")).unwrap();
+        let fri = load(&conn, "2026-11-13").unwrap().unwrap();
+        assert!(fri["state"]["blocks"].as_array().unwrap().iter().all(|b| b["routineId"] != "ielts"));
+
+        // Sunday 15: a class day, but removed for that day only.
+        ensure_today(&mut conn, d("2026-11-15")).unwrap();
+        let sun = load(&conn, "2026-11-15").unwrap().unwrap();
+        assert!(sun["state"]["blocks"].as_array().unwrap().iter().all(|b| b["routineId"] != "ielts"));
+        assert_eq!(sun["state"]["routines"][0]["skipDays"], json!(["2026-11-15"]));
+
+        // Tuesday 17: the last day, still on. Thursday 19: past the end date, gone.
+        ensure_today(&mut conn, d("2026-11-17")).unwrap();
+        let last = load(&conn, "2026-11-17").unwrap().unwrap();
+        assert!(last["state"]["blocks"].as_array().unwrap().iter().any(|b| b["routineId"] == "ielts"));
+        ensure_today(&mut conn, d("2026-11-19")).unwrap();
+        let after = load(&conn, "2026-11-19").unwrap().unwrap();
+        assert!(after["state"]["blocks"].as_array().unwrap().iter().all(|b| b["routineId"] != "ielts"));
+        assert_eq!(after["state"]["routines"][0]["until"], "2026-11-17", "ended repeats are kept, not deleted");
+    }
+
+    #[test]
+    fn copies_changed_only_this_day_keep_that_flag() {
+        let mut conn = open_in_memory();
+        let mut snap = snapshot("2026-11-11");
+        snap.state.blocks[1].routine_id = Some("r1".into());
+        snap.state.blocks[1].detached = true;
+        save(&mut conn, &snap).unwrap();
+        let v = load(&conn, "2026-11-11").unwrap().unwrap();
+        let mine = v["state"]["blocks"].as_array().unwrap().iter().find(|b| b["id"] == "mine").unwrap();
+        assert_eq!(mine["detached"], true);
+        assert_eq!(mine["routineId"], "r1");
     }
 
     #[test]

@@ -57,6 +57,7 @@ pub fn run() {
             reminders::preview_notification,
             set_autostart,
             get_autostart,
+            can_autostart,
         ])
         .setup(|app| {
             // 1. Database: open (migrating if needed), roll the day over, back up once a day.
@@ -79,13 +80,14 @@ pub fn run() {
             reminders::start(app.handle().clone());
             tray::create(app.handle())?;
 
-            // Start with Windows by default: only for the installed app, never for dev builds.
-            #[cfg(not(debug_assertions))]
-            {
-                use tauri_plugin_autostart::ManagerExt;
-                let launcher = app.autolaunch();
-                if !launcher.is_enabled().unwrap_or(false) {
-                    let _ = launcher.enable();
+            // Start with Windows: switched on once, on the first run of the installed app.
+            // After that it's the user's choice (Settings → System). Never for dev/build-folder runs.
+            if is_installed() {
+                let marker = dir.join("autostart-initialized");
+                if !marker.exists() {
+                    use tauri_plugin_autostart::ManagerExt;
+                    let _ = app.autolaunch().enable();
+                    let _ = std::fs::write(&marker, b"1");
                 }
             }
 
@@ -116,8 +118,28 @@ pub fn backup_today(app: &tauri::AppHandle, conn: &rusqlite::Connection) {
     }
 }
 
+/// True when running as the installed app, not a dev build or a binary straight from the build folder.
+/// Only the installed app may register itself to start with Windows (otherwise a build-folder
+/// exe, with a console window in dev builds, would launch at every login).
+fn is_installed() -> bool {
+    if cfg!(debug_assertions) {
+        return false;
+    }
+    std::env::current_exe()
+        .map(|p| !p.to_string_lossy().to_lowercase().contains(r"\target\"))
+        .unwrap_or(false)
+}
+
+#[tauri::command]
+fn can_autostart() -> bool {
+    is_installed()
+}
+
 #[tauri::command]
 fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    if enabled && !is_installed() {
+        return Err("Start with Windows is available in the installed app".into());
+    }
     use tauri_plugin_autostart::ManagerExt;
     let launcher = app.autolaunch();
     let result = if enabled { launcher.enable() } else { launcher.disable() };

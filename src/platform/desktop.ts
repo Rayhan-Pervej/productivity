@@ -95,6 +95,8 @@ export async function previewNotification(kind: "upcoming" | "starting" | "endin
 
 export const setAutostart = (enabled: boolean) => invoke("set_autostart", { enabled });
 export const getAutostart = () => invoke<boolean>("get_autostart");
+/** Only the installed app can start with Windows (not dev builds). */
+export const canAutostart = () => invoke<boolean>("can_autostart");
 
 export interface DataInfo {
   dbPath: string;

@@ -3,9 +3,9 @@ import { useMemo, useState } from "react";
 import { Check, Coffee, Moon, Sun } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useApp } from "@/store/app";
-import { blocksFromTemplate, templateForWeekday } from "@/data/seed";
+import { blocksForDay } from "@/lib/days";
 import { dayProgress, missedBlocks, sortByStart, unresolvedBlocks } from "@/lib/day";
-import { fmtTime, todayLabel, weekdayOf } from "@/lib/time";
+import { fmtTime, todayLabel } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { Button, Modal, ProgressRing, SectionLabel } from "@/components/ui";
 import { Select } from "@/components/Select";
@@ -127,13 +127,10 @@ function ReviewBody({ onDone }: { onDone: () => void }) {
   const { ratio, done, total } = dayProgress(blocks);
   const wins = doneBlocks.length + doneTasks.length;
 
+  const routines = useApp((s) => s.routines);
   const tomorrowPlan = useMemo(
-    () =>
-      sortByStart([
-        ...blocksFromTemplate(templateForWeekday(templates, weekdayOf(1))),
-        ...upcoming.filter((b) => b.dayOffset === 1),
-      ]),
-    [templates, upcoming],
+    () => sortByStart(blocksForDay(1, [], templates, upcoming, routines)),
+    [templates, upcoming, routines],
   );
 
   const steps = [

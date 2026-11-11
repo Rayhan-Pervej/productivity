@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { dataInfo, exportData, getAutostart, isDesktop, setAutostart, type DataInfo } from "@/platform/desktop";
+import { canAutostart, dataInfo, exportData, getAutostart, isDesktop, setAutostart, type DataInfo } from "@/platform/desktop";
 import { ArrowRight, Check, ChevronDown, Download, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useApp } from "@/store/app";
@@ -8,6 +8,7 @@ import { fmtTime } from "@/lib/time";
 import { cn, tint } from "@/lib/utils";
 import { Button, Kbd, SectionLabel, Switch, TimeSelect } from "@/components/ui";
 import { AreaSelect } from "@/components/AreaSelect";
+import { RoutinesSection } from "./RoutinesSection";
 import { ClockControl, LeadMinutesControl, SettingRow, SettingsGroup, ThemeControl } from "@/components/settings";
 
 function Page({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
@@ -106,6 +107,7 @@ export function PlansView() {
           <PlanCard key={t.id} template={t} editing={editing === t.id} onToggle={() => setEditing(editing === t.id ? null : t.id)} />
         ))}
       </div>
+      <RoutinesSection />
       <p className="mt-6 text-[12.5px] leading-relaxed text-muted">
         <span className="font-medium text-text">Tracked</span> blocks get reminders and count toward your day.{" "}
         <span className="font-medium text-text">Background</span> blocks (office, time out) shape the day but never need ticking.
@@ -295,10 +297,14 @@ export function SettingsView() {
 
 function AutostartToggle() {
   const [on, setOn] = useState<boolean | null>(null);
+  const [allowed, setAllowed] = useState(true);
   useEffect(() => {
-    if (isDesktop) getAutostart().then(setOn).catch(() => setOn(false));
+    if (!isDesktop) return;
+    canAutostart().then(setAllowed).catch(() => setAllowed(false));
+    getAutostart().then(setOn).catch(() => setOn(false));
   }, []);
   if (!isDesktop) return <span className="text-[12.5px] text-muted">In the desktop app</span>;
+  if (!allowed) return <span className="text-[12.5px] text-muted">In the installed app</span>;
   if (on === null) return null;
   return (
     <Switch

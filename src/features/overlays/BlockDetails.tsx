@@ -1,12 +1,17 @@
 // Details of a tracked block: rename it and manage its steps (subtasks).
 import { useState } from "react";
-import { Check, Play, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { Check, Play, Plus, Repeat, RotateCcw, Trash2, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useApp } from "@/store/app";
 import { dayLabel, fmtDuration } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { Button, Kbd, Modal, TimeSelect } from "@/components/ui";
 import { AreaSelect } from "@/components/AreaSelect";
+import { WeekdayPicker } from "@/components/WeekdayPicker";
+import { repeatLabel, repeatPhrase, untilPhrase } from "@/lib/repeat";
+import { DateInput } from "@/components/DateInput";
+import { SegmentedControl } from "@/components/SegmentedControl";
+import { isoDay } from "@/lib/time";
 import type { Block, DatedBlock } from "@/domain/types";
 
 export function BlockDetails() {
@@ -25,16 +30,46 @@ export function BlockDetails() {
 
 function Body({ block }: { block: Block | DatedBlock }) {
   const now = useApp((s) => s.now);
-  const { renameBlock, updateBlock, completeBlock, reopenBlock, deleteBlock, setView, close } = useApp.getState();
+  const { updateBlock, completeBlock, reopenBlock, deleteBlock, setRepeat, updateRoutine, setView, close } = useApp.getState();
+  const routine = useApp((s) => (block.routineId ? s.routines.find((r) => r.id === block.routineId) : undefined));
   const dayOffset = "dayOffset" in block ? block.dayOffset : 0;
   const isToday = dayOffset === 0;
   const active = isToday && block.status === "planned" && block.start <= now && now < block.end;
   const doneSteps = block.subtasks.filter((t) => t.done).length;
   const duration = block.end - block.start;
 
+  // Editing a repeat's copy: "Only this day" (default once you edit) or "Every time" (the repeat changes too).
+  const [scope, setScope] = useState<"day" | "all" | null>(block.detached ? "day" : null);
+  type Edit = Partial<Pick<Block, "title" | "start" | "end" | "areaId">>;
+  const edit = (patch: Edit) => {
+    if (!routine) return updateBlock(block.id, patch);
+    if (scope === "all") {
+      updateRoutine(routine.id, patch);
+      updateBlock(block.id, { ...patch, detached: false });
+    } else {
+      updateBlock(block.id, { ...patch, detached: true });
+      if (!scope) setScope("day");
+    }
+  };
+  const chooseScope = (next: "day" | "all") => {
+    if (!routine) return;
+    if (next === "all") {
+      // Make the repeat match this copy; every other copy follows.
+      updateRoutine(routine.id, { title: block.title, start: block.start, end: block.end, areaId: block.areaId });
+      updateBlock(block.id, { detached: false });
+    } else {
+      updateBlock(block.id, { detached: true });
+    }
+    setScope(next);
+  };
+
   const deleteNote = !isToday
-    ? `Delete removes it from ${dayLabel(dayOffset)}.`
-    : block.fromPlan
+    ? routine
+      ? `Delete removes it from ${dayLabel(dayOffset)} only. It still repeats on its other days.`
+      : `Delete removes it from ${dayLabel(dayOffset)}.`
+    : routine
+      ? "Delete removes it from today only. It still repeats on its other days."
+      : block.fromPlan
       ? "Delete removes it from today only. To change every day, edit Plans."
       : null;
 
@@ -42,11 +77,17 @@ function Body({ block }: { block: Block | DatedBlock }) {
     <div className="p-6">
       <div className="flex items-center gap-2 text-[12px] font-medium text-muted">
         <span className="rounded-md bg-surface-2 px-2 py-0.5">{dayLabel(dayOffset)}</span>
-        {block.fromPlan && <span>From your plan</span>}
+        {routine ? (
+          <span className="flex items-center gap-1 text-accent">
+            <Repeat size={12} /> Repeats {repeatPhrase(routine.days)} {untilPhrase(routine.until)}
+          </span>
+        ) : (
+          block.fromPlan && <span>From your plan</span>
+        )}
       </div>
       <input
         value={block.title}
-        onChange={(e) => renameBlock(block.id, e.target.value)}
+        onChange={(e) => edit({ title: e.target.value })}
         aria-label="Title"
         className="-mx-1 mt-2 w-full rounded-lg border border-transparent bg-transparent px-1 text-[20px] font-semibold tracking-tight outline-none hover:border-border focus:border-accent"
       />
@@ -57,7 +98,7 @@ function Body({ block }: { block: Block | DatedBlock }) {
           label="Start"
           value={block.start}
           step={15}
-          onChange={(start) => updateBlock(block.id, { start, end: start + duration })}
+          onChange={(start) => edit({ start, end: start + duration })}
         />
         <span className="text-muted">–</span>
         <TimeSelect
@@ -65,11 +106,56 @@ function Body({ block }: { block: Block | DatedBlock }) {
           value={block.end}
           from={block.start + 15}
           step={15}
-          onChange={(end) => updateBlock(block.id, { end })}
+          onChange={(end) => edit({ end })}
         />
         <span className="tabular text-muted">{fmtDuration(duration)}</span>
-        <AreaSelect className="ml-auto" value={block.areaId} onChange={(areaId) => updateBlock(block.id, { areaId })} />
+        <AreaSelect className="ml-auto" value={block.areaId} onChange={(areaId) => edit({ areaId })} />
       </div>
+
+      {routine && scope && (
+        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-surface-2/60 px-3 py-2.5">
+          <span className="text-[12.5px] text-muted">Apply this change to</span>
+          <SegmentedControl
+            label="Apply change to"
+            size="sm"
+            value={scope}
+            onChange={chooseScope}
+            options={[
+              { value: "day", label: "Only this day" },
+              { value: "all", label: "Every time" },
+            ]}
+          />
+          <span className="w-full text-[11.5px] text-muted">
+            {scope === "day"
+              ? "Other days keep the repeat's title and time."
+              : "The repeat changes, and every day that wasn't changed on its own follows."}
+          </span>
+        </div>
+      )}
+
+      {/* Repeat on weekdays (tracked blocks only) */}
+      {block.kind === "commitment" && (
+        <div className="mt-5">
+          <div className="mb-2 flex items-center text-[12px] text-muted">
+            <span className="font-semibold tracking-wider uppercase">Repeat</span>
+            <span className="ml-auto">
+              {routine ? `${repeatLabel(routine.days)} ${untilPhrase(routine.until)}` : "Doesn't repeat"}
+            </span>
+          </div>
+          <WeekdayPicker value={routine?.days ?? []} onChange={(days) => setRepeat(block.id, days.length ? days : null)} />
+          {routine && (
+            <div className="mt-3 flex items-center gap-2 text-[13px]">
+              <span className="text-muted">Until</span>
+              <DateInput
+                label="Repeat until"
+                value={routine.until}
+                min={isoDay()}
+                onChange={(until) => updateRoutine(routine.id, { until })}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-6 mb-2 flex items-center text-[12px] text-muted">
         <span className="font-semibold tracking-wider uppercase">Steps</span>

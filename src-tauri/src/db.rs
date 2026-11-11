@@ -60,6 +60,25 @@ const MIGRATIONS: &[&str] = &[
     );
     CREATE INDEX activity_by_time ON activity(at);
     "#,
+    // v2: repeating routines (Standup on weekdays, IELTS Sun/Tue/Thu…)
+    r#"
+    CREATE TABLE routines (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, area_id TEXT NOT NULL,
+        start_min REAL NOT NULL, end_min REAL NOT NULL,
+        days TEXT NOT NULL,            -- weekdays as "0,2,4" (0 = Sunday)
+        sort INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER
+    );
+    ALTER TABLE blocks ADD COLUMN routine_id TEXT;
+    "#,
+    // v3: a repeat can end ("every day till 30 Nov")
+    r#"
+    ALTER TABLE routines ADD COLUMN until_day TEXT;
+    "#,
+    // v4: per-day exceptions (a repeat removed on one day) and copies changed "only this day"
+    r#"
+    ALTER TABLE routines ADD COLUMN skip_days TEXT;
+    ALTER TABLE blocks ADD COLUMN detached INTEGER NOT NULL DEFAULT 0;
+    "#,
 ];
 
 pub fn open(path: &Path) -> rusqlite::Result<Connection> {

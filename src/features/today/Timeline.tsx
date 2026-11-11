@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { Check, Clock, Play, Plus, RotateCcw, SkipForward, Trash2 } from "lucide-react";
+import { Check, Clock, Play, Plus, Repeat, RotateCcw, SkipForward, Trash2 } from "lucide-react";
 import { useApp } from "@/store/app";
 import type { Block } from "@/domain/types";
 import { dayPhrase, fmtDuration, fmtTime } from "@/lib/time";
@@ -195,6 +195,7 @@ export function Timeline({
               nested={nesting.nested.has(b.id)}
               hosting={nesting.hosts.has(b.id)}
               readOnly={readOnly}
+              dayOffset={dayOffset}
               onAddAt={(minute, areaId) =>
                 open("quickAdd", `${dayPhrase(dayOffset)}at ${fmtTime(minute)} ${areaId ? `#${areaId} ` : ""}`)
               }
@@ -253,15 +254,22 @@ interface Lane {
 }
 
 function TimelineBlock({
-  block, now, top, height: rawHeight, lane, nested = false, hosting = false, readOnly, onAddAt, unmap, map,
+  block, now, top, height: rawHeight, lane, nested = false, hosting = false, readOnly, dayOffset = 0, onAddAt, unmap, map,
 }: {
   block: Block; now: number; top: number; height: number; lane?: Lane; nested?: boolean; hosting?: boolean; readOnly: boolean;
+  dayOffset?: number;
   onAddAt: (minute: number, areaId?: string) => void; unmap: (y: number) => number; map: (minute: number) => number;
 }) {
   const area = useArea(block.areaId);
   const { completeBlock, reopenBlock, skipBlock, extendBlock, setView, openBlock, deleteBlock } = useApp.getState();
   // Future days are read-only, except for things you added to them yourself.
   const deletable = !readOnly || "dayOffset" in block;
+  // A future day's preview of a repeat: becomes a real copy for that day on first click.
+  const repeatPreview = readOnly && !!block.routineId && !("dayOffset" in block);
+  const editable = deletable || repeatPreview;
+  /** The real block to act on (creating that day's repeat copy if needed); undefined for plan blocks. */
+  const target = (): Block | undefined =>
+    deletable ? block : repeatPreview ? useApp.getState().ensureRoutineCopy(block.routineId!, dayOffset) : undefined;
   const color = area?.color ?? "#888";
   const height = Math.max(24, rawHeight - 3);
   const compact = height < 48;
@@ -320,17 +328,19 @@ function TimelineBlock({
   return (
     <div
       onContextMenu={(e) => {
-        if (!wantsNativeMenu(e.nativeEvent)) showMenu(e, blockMenu(block, { isToday: !readOnly, editable: deletable }));
+        if (wantsNativeMenu(e.nativeEvent)) return;
+        const real = target();
+        showMenu(e, blockMenu(real ?? block, { isToday: !readOnly, editable: !!real, dayOffset }));
       }}
       onClick={() => {
-        if (deletable) openBlock(block.id);
+        const real = target();
+        if (real) openBlock(real.id);
         else useApp.getState().say("This comes from your plan. Change it in Plans.");
       }}
-      title={deletable ? "Open details · edit, add steps" : "From your plan. Edit it in Plans."}
-     
+      title={editable ? "Open details · edit, add steps" : "From your plan. Edit it in Plans."}
       className={cn(
         "group absolute z-[1] overflow-hidden rounded-xl transition-all duration-200",
-        deletable ? "cursor-pointer hover:-translate-y-px hover:shadow-soft" : "cursor-help",
+        editable ? "cursor-pointer hover:-translate-y-px hover:shadow-soft" : "cursor-default",
         celebrate && "animate-[done-pop_650ms_ease-out]",
         active && "z-10 shadow-soft ring-2",
         (missed || skipped) && "border border-dashed border-border",
@@ -361,6 +371,11 @@ function TimelineBlock({
             {block.title}
           </span>
           {active && <span className="rounded-full bg-accent px-1.5 py-px text-[10px] font-semibold text-accent-fg">now</span>}
+          {block.routineId && (
+            <span title="Repeats" className="shrink-0 text-muted">
+              <Repeat size={12} />
+            </span>
+          )}
           {block.subtasks.length > 0 && <StepProgress done={block.subtasks.filter((t) => t.done).length} total={block.subtasks.length} color={color} />}
           {missed && <span className="shrink-0 text-[11px] text-attention">didn't happen</span>}
           <span className="tabular ml-auto shrink-0 pl-2 text-[11.5px] text-muted">
@@ -477,7 +492,7 @@ function BackgroundBand({
         </>
       )}
 
-      {hover && <HoverGuide hover={hover} lineY={map(hover.minute) - top} bandHeight={height} color={color} />}
+      {hover && <HoverGuide hover={hover} lineY={map(hover.minute) - top} bandHeight={height} color={color} hosting={hosting} />}
     </button>
   );
 }
@@ -491,10 +506,13 @@ const clampTo = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo),
  * The line is exact; the pill is kept fully inside the band so it never gets clipped at the edges.
  */
 function HoverGuide({
-  hover, lineY, bandHeight, color,
-}: { hover: { minute: number; x: number; width: number }; lineY: number; bandHeight: number; color: string }) {
+  hover, lineY, bandHeight, color, hosting,
+}: { hover: { minute: number; x: number; width: number }; lineY: number; bandHeight: number; color: string; hosting: boolean }) {
   const pillTop = clampTo(lineY - PILL_H / 2, 2, bandHeight - PILL_H - 2);
-  const pillLeft = clampTo(hover.x + 14, 4, hover.width - PILL_W - 4);
+  // Tasks float on top of a hosting band, so keep the pill in the band's free label column there.
+  const pillLeft = hosting
+    ? clampTo(hover.x - PILL_W / 2, 4, NEST_INSET - PILL_W - 4)
+    : clampTo(hover.x + 14, 4, hover.width - PILL_W - 4);
   return (
     <>
       <span

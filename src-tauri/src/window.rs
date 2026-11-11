@@ -35,11 +35,24 @@ pub fn show_main(app: &AppHandle, intent: Option<Intent>) {
         .inner_size(1120.0, 720.0)
         .min_inner_size(820.0, 560.0)
         .center()
+        // Hidden until the page has drawn its first real frame (see main.tsx), so you never see a
+        // blank white WebView while it loads.
+        .visible(false)
         .build();
 
     match built {
-        Ok(window) => {
-            let _ = window.set_focus();
+        Ok(_) => {
+            // Safety net: if the page never says it's ready, show the window anyway.
+            let app = app.clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
+                if let Some(window) = app.get_webview_window(MAIN) {
+                    if !window.is_visible().unwrap_or(true) {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                }
+            });
         }
         Err(err) => eprintln!("could not open the main window: {err}"),
     }

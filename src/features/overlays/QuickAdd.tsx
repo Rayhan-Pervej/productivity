@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowRight, CalendarClock, Plus, Timer, Tag } from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarClock, Plus, Repeat, Timer, Tag } from "lucide-react";
 import { useApp } from "@/store/app";
 import { parseQuickAdd, TYPE_LABEL } from "@/lib/parse";
 import { overlapping } from "@/lib/day";
+import { repeatLabel, repeatPhrase, untilPhrase } from "@/lib/repeat";
 import { blocksForDay } from "@/lib/days";
 import { fmtDuration, fmtTime } from "@/lib/time";
 import { AreaDot, Kbd, Modal } from "@/components/ui";
 
-const EXAMPLES = ["client call 9pm 45m", "study dsa 1h tonight", "client review day after tomorrow 9pm", "gym fri 7am", "submit invoice by fri"];
+const EXAMPLES = ["client call 9pm 45m", "study dsa 1h tonight", "standup weekdays 8:30am #office", "ielts every sun tue thu 9pm", "submit invoice by fri"];
 
 export function QuickAdd() {
   const isOpen = useApp((s) => s.overlay === "quickAdd");
@@ -25,6 +26,7 @@ function QuickAddBody() {
   const blocks = useApp((s) => s.blocks);
   const templates = useApp((s) => s.templates);
   const upcoming = useApp((s) => s.upcoming);
+  const routines = useApp((s) => s.routines);
   const anytime = useApp((s) => s.anytime);
   const { addParsed, scheduleTask, close } = useApp.getState();
   const [text, setText] = useState(seed);
@@ -41,12 +43,14 @@ function QuickAddBody() {
   const area = areas.find((a) => a.id === parsed.areaId);
   const clash =
     parsed.type === "fixed" && parsed.start !== undefined
-      ? overlapping(blocksForDay(parsed.day, blocks, templates, upcoming), parsed.start, parsed.start + parsed.duration)
+      ? overlapping(blocksForDay(parsed.day, blocks, templates, upcoming, routines), parsed.start, parsed.start + parsed.duration)
       : undefined;
 
   // Where will this land? Said plainly, so nothing "disappears" into a list.
   const destination =
-    parsed.type === "fixed" && parsed.start !== undefined
+    parsed.type === "routine" && parsed.start !== undefined && parsed.repeat
+      ? `Repeats ${repeatPhrase(parsed.repeat)} at ${fmtTime(parsed.start)}${parsed.until ? `, ${untilPhrase(parsed.until)}` : ""}, on the timeline`
+      : parsed.type === "fixed" && parsed.start !== undefined
       ? `On the timeline · ${parsed.dayLabel} ${fmtTime(parsed.start)}`
       : parsed.type === "backlog" && !parsed.areaId
         ? "Inbox, to sort later"
@@ -89,10 +93,16 @@ function QuickAddBody() {
               {area ? <AreaDot color={area.color} /> : <Tag size={12} />}
               {area?.name ?? (parsed.type === "backlog" ? "Inbox" : "Personal")}
             </Chip>
+            {parsed.repeat && (
+              <Chip className="text-accent">
+                <Repeat size={12} /> {repeatLabel(parsed.repeat)} {untilPhrase(parsed.until)}
+              </Chip>
+            )}
             {parsed.start !== undefined && (
               <Chip>
                 <CalendarClock size={12} />
-                {parsed.dayLabel} {fmtTime(parsed.start)} – {fmtTime(parsed.start + parsed.duration)}
+                {!parsed.repeat && `${parsed.dayLabel} `}
+                {fmtTime(parsed.start)} – {fmtTime(parsed.start + parsed.duration)}
               </Chip>
             )}
             {parsed.start === undefined && parsed.day > 0 && (
@@ -173,7 +183,7 @@ function QuickAddBody() {
         <span className="flex items-center gap-1.5">
           <Kbd>Esc</Kbd> close
         </span>
-        <span className="ml-auto">#client · 9pm · 45m · tomorrow · fri · 15 nov · in 3 days · by fri</span>
+        <span className="ml-auto">#client · 9pm · 45m · tomorrow · fri · every day · weekdays</span>
       </div>
     </div>
   );

@@ -1,20 +1,59 @@
 // What the right-click menu offers, by what was clicked. One place for all menu wording and actions.
 import {
   ArrowRight, CalendarClock, CalendarDays, Check, Clock, Inbox, LayoutTemplate, ListChecks, Moon, Play, Plus,
-  RotateCcw, Settings, SkipForward, Sparkles, Sunrise, Trash2, Undo2,
+  Repeat, RotateCcw, Settings, SkipForward, Sparkles, Sunrise, Trash2, Undo2, X,
 } from "lucide-react";
 import type { MenuItem } from "@/components/ContextMenu";
-import type { Block, Task } from "@/domain/types";
+import type { Block, Task, Weekday } from "@/domain/types";
+import { EVERY_DAY, WEEKDAYS, WEEKDAY_LONG, WEEKENDS, isSameDays } from "@/lib/repeat";
+import { weekdayOf } from "@/lib/time";
 import { useApp } from "@/store/app";
 import { freeStarts } from "@/lib/day";
 import { fmtTime } from "@/lib/time";
 
 const I = 15; // icon size
 
+/**
+ * "Repeat ▸" submenu: presets with a check on the current choice, custom days, or stop.
+ * `weekday` is the day the block is on, for "Every Tuesday".
+ */
+function repeatSubmenu(current: Weekday[] | undefined, weekday: Weekday, apply: (days: Weekday[] | null) => void, custom: () => void): MenuItem {
+  const option = (label: string, days: Weekday[]): MenuItem => ({
+    label,
+    checked: !!current && isSameDays(current, days),
+    onSelect: () => apply(days),
+  });
+  const presetChosen = !!current && [EVERY_DAY, WEEKDAYS, WEEKENDS, [weekday]].some((d) => isSameDays(current, d as Weekday[]));
+  return {
+    label: current ? "Repeats" : "Repeat",
+    icon: <Repeat size={I} />,
+    submenu: [
+      option("Every day", EVERY_DAY),
+      option("Weekdays (Mon – Fri)", WEEKDAYS),
+      option("Weekends", WEEKENDS),
+      option(`Every ${WEEKDAY_LONG[weekday]}`, [weekday]),
+      "separator",
+      { label: "Custom days…", checked: !!current && !presetChosen, onSelect: custom },
+      ...(current ? ["separator" as const, { label: "Don't repeat", icon: <X size={I} />, onSelect: () => apply(null) }] : []),
+    ],
+  };
+}
+
 /** A tracked block on the timeline (today or a future day). */
-export function blockMenu(block: Block, opts: { isToday: boolean; editable: boolean }): MenuItem[] {
+export function blockMenu(block: Block, opts: { isToday: boolean; editable: boolean; dayOffset?: number }): MenuItem[] {
   const s = useApp.getState();
+  const routine = block.routineId ? s.routines.find((r) => r.id === block.routineId) : undefined;
+  const offset = opts.dayOffset ?? ("dayOffset" in block ? (block as { dayOffset: number }).dayOffset : 0);
+  const weekday = weekdayOf(offset) as Weekday;
+
   if (!opts.editable) {
+    // A future copy of a repeat: change the repeat itself. A plan block: edit the plan.
+    if (routine) {
+      return [
+        repeatSubmenu(routine.days, weekday, (days) => (days ? s.updateRoutine(routine.id, { days }) : s.stopRoutine(routine.id)), () => s.setView("plans")),
+        { label: "Edit repeats in Plans", icon: <LayoutTemplate size={I} />, onSelect: () => s.setView("plans") },
+      ];
+    }
     return [{ label: "Edit in Plans", icon: <LayoutTemplate size={I} />, onSelect: () => s.setView("plans") }];
   }
   const planned = block.status === "planned";
@@ -38,6 +77,9 @@ export function blockMenu(block: Block, opts: { isToday: boolean; editable: bool
       : []),
     "separator",
     { label: "Open details", icon: <ListChecks size={I} />, onSelect: () => s.openBlock(block.id) },
+    ...(block.kind === "commitment"
+      ? [repeatSubmenu(routine?.days, weekday, (days) => s.setRepeat(block.id, days), () => s.openBlock(block.id))]
+      : []),
     ...(opts.isToday && planned
       ? [
           { label: "Move to tomorrow", icon: <ArrowRight size={I} />, onSelect: () => s.triage(block.id, "tomorrow") },

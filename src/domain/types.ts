@@ -9,7 +9,7 @@ export interface Area {
   color: string;
 }
 
-export type TaskType = "fixed" | "flexible" | "deadline" | "habit" | "backlog";
+export type TaskType = "fixed" | "flexible" | "deadline" | "habit" | "backlog" | "routine";
 
 /**
  * `context`   : background of the day (office, time out). Completes on its own; never nags.
@@ -36,8 +36,30 @@ export interface Block {
   end: number;
   status: BlockStatus;
   subtasks: Subtask[];
-  /** Generated from a plan (template) rather than added by you. */
+  /** Generated from a plan (template) or a repeat rather than added by you. */
   fromPlan?: boolean;
+  /** Set when this block is a day's copy of a repeating routine. */
+  routineId?: string;
+  /** A repeat copy changed for this day only: edits to the repeat no longer touch it. */
+  detached?: boolean;
+}
+
+/** Weekday, as in JS `Date.getDay()`: 0 = Sunday … 6 = Saturday. */
+export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/** Something that repeats on chosen weekdays at a fixed time (e.g. Standup, weekdays 8:30). */
+export interface Routine {
+  id: string;
+  title: string;
+  areaId: AreaId;
+  start: number;
+  end: number;
+  /** Which weekdays it happens on (sorted, unique). */
+  days: Weekday[];
+  /** Last day it happens, inclusive ("2026-11-30"). No end when unset. */
+  until?: string;
+  /** Days it was removed from ("2026-11-19"), like a calendar's exceptions. */
+  skipDays?: string[];
 }
 
 /** A block on a future day (prototype: days are offsets from today). */

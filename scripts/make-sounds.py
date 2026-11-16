@@ -99,7 +99,7 @@ def bar(freq, start, gain=1.0, ring=0.42, seed=1):
 
 
 # Wholeday's reminder sound: two low, calm marimba notes (E4 then B4).
-render_fx("marimba", bar(330.0, 0.0, 1.0, ring=0.5) + bar(494.4, 0.16, 0.85, ring=0.55, seed=2), 1.45, mix=0.2)
+render_fx("marimba", bar(330.0, 0.0, 1.0, ring=0.5) + bar(494.4, 0.16, 0.85, ring=0.55, seed=2), 1.45, peak=0.92, mix=0.2)  # loud: low notes sound quieter than "done"
 
 # "done": a short, bright two-note confirmation for completing something
 render("done", [note(G5, 0.0, 0.35, PLUCK, 0.18, gain=0.8), note(D6, 0.07, 0.45, PLUCK, 0.22)], 0.55, peak=0.45)

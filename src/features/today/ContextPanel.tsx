@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useApp, useCurrent, type Triage } from "@/store/app";
 import { freeStarts, freeWindow, missedBlocks, nextCommitment, suggest } from "@/lib/day";
 import { fmtCountdown, fmtDuration, fmtTime, inQuietHours } from "@/lib/time";
-import { cn, tint } from "@/lib/utils";
+import { cn, ink, tint } from "@/lib/utils";
 import { AreaDot, Button, ProgressRing, SectionLabel, TimeSelect, useArea } from "@/components/ui";
 import { showMenu, wantsNativeMenu } from "@/components/ContextMenu";
 import { taskMenu } from "@/features/menus";
@@ -109,7 +109,7 @@ function CommitmentCard({ block }: { block: Block }) {
       className="rounded-2xl border border-border p-4"
       style={{ background: `linear-gradient(180deg, ${tint(color, 12)}, var(--surface) 70%)` }}
     >
-      <div className="flex items-center gap-2 text-[12px] font-medium" style={{ color }}>
+      <div className="flex items-center gap-2 text-[12px] font-medium" style={{ color: ink(color) }}>
         <AreaDot color={color} /> {area?.name}
       </div>
       <div className="mt-1 text-[16px] leading-snug font-semibold">{block.title}</div>

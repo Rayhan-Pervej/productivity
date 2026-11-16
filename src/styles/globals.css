@@ -4,18 +4,21 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* Design tokens: see docs/07-ui-ux-design.md §11 */
+/* Light theme: neutral gray, built on Tailwind's zinc scale so every gray shares one temperature.
+   White cards on a soft gray, with a deeper gray for chips and tracks. Every text color is at least
+   4.5:1 (WCAG AA) on the backgrounds it sits on. */
 :root {
-  --bg: #f7f7f5;
+  --bg: #f4f4f5; /* zinc-100 */
   --surface: #ffffff;
-  --surface-2: #f0f0ee;
-  --border: #e6e6e3;
-  --text: #1a1a1c;
-  --text-muted: #5e5e66;
-  --accent: #5b5bd6;
+  --surface-2: #e9e9ec; /* between zinc-100 and zinc-200 */
+  --border: #dcdce0; /* between zinc-200 and zinc-300: card edges stay crisp */
+  --text: #18181b; /* zinc-900 */
+  --text-muted: #52525b; /* zinc-600 (zinc-500 is too light: 4.4) */
+  --accent: #5b5bd6; /* Wholeday's own accent (brand) */
   --accent-fg: #ffffff;
-  --success: #2f9e6e;
-  --attention: #c98a1b;
-  --danger: #d14d4d;
+  --success: #047857; /* emerald-700 */
+  --attention: #b45309; /* amber-700 */
+  --danger: #b91c1c; /* red-700 (red-600 is too light: 4.4) */
   --shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.06);
   color-scheme: light;
 }

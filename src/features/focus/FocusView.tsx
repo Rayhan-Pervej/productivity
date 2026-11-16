@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import { useApp, useCurrent } from "@/store/app";
 import { freeWindow, nextCommitment } from "@/lib/day";
 import { fmtCountdown, fmtTime, inQuietHours } from "@/lib/time";
-import { isTyping, tint } from "@/lib/utils";
+import { ink, isTyping, tint } from "@/lib/utils";
 import { Button, Kbd, ProgressRing, useArea } from "@/components/ui";
 import { NightCard, SuggestionCard } from "@/features/today/ContextPanel";
 import { Steps } from "@/features/overlays/BlockDetails";
@@ -136,7 +136,7 @@ function FocusSession({ block }: { block: Block }) {
         transition={{ duration: 0.3 }}
         className="flex flex-col items-center"
       >
-        <div className="flex items-center gap-2 text-[12px] font-semibold tracking-[0.12em] uppercase" style={{ color }}>
+        <div className="flex items-center gap-2 text-[12px] font-semibold tracking-[0.12em] uppercase" style={{ color: ink(color) }}>
           <span className="size-2 rounded-full" style={{ background: color }} />
           {area?.name}
         </div>

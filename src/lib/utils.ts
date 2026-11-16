@@ -14,6 +14,15 @@ export function tint(color: string, percent: number) {
   return `color-mix(in srgb, ${color} ${percent}%, transparent)`;
 }
 
+/**
+ * An area color made readable as text: mixed 40% toward the text color, so it darkens on light
+ * backgrounds and lightens on dark ones while keeping its hue (at least 4.8:1 on its own block tint).
+ * Use the raw color for bars, dots and tints; use ink() for words.
+ */
+export function ink(color: string) {
+  return `color-mix(in srgb, ${color} 60%, var(--text))`;
+}
+
 /** `v` kept within [lo, hi]. If the range is empty (hi < lo), `lo` wins. */
 export function clamp(v: number, lo: number, hi: number) {
   return Math.min(Math.max(v, lo), Math.max(lo, hi));

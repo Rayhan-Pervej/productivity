@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { Check, Clock, Play, Repeat, RotateCcw, SkipForward, Trash2 } from "lucide-react";
 import { useApp } from "@/store/app";
 import { fmtTime } from "@/lib/time";
-import { cn, tint } from "@/lib/utils";
+import { cn, ink, tint } from "@/lib/utils";
 import type { Lane } from "@/lib/timelineLayout";
 import { useArea } from "@/components/ui";
 import { IconButton } from "@/components/IconButton";
@@ -112,7 +112,7 @@ export function TimelineBlock({
   const skipped = block.status === "skipped";
   // Finished, skipped or missed blocks fade their content, not the card: the card's background stays
   // solid, so lines behind it (row lines, the now line) never show through.
-  const fade = cn("transition-opacity group-hover:opacity-100", (done || skipped) && "opacity-55", missed && "opacity-80");
+  const fade = cn("transition-opacity group-hover:opacity-100", (done || skipped) && "opacity-65", missed && "opacity-80");
 
   const openDetails = () => {
     const real = target();
@@ -169,7 +169,7 @@ export function TimelineBlock({
               <Check size={14} className="shrink-0 text-success" />
             </motion.span>
           )}
-          <span className="shrink-0 text-[11.5px] font-medium @max-[400px]:hidden" style={{ color }}>
+          <span className="shrink-0 text-[11.5px] font-medium @max-[400px]:hidden" style={{ color: ink(color) }}>
             {area?.name}
           </span>
           <span

@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import { Check } from "lucide-react";
 import { useApp } from "@/store/app";
 import { STEP_HEADER, STEP_ROW } from "@/lib/timelineLayout";
-import { cn, tint } from "@/lib/utils";
+import { cn, ink, tint } from "@/lib/utils";
 import type { Block } from "@/domain/types";
 
 /** "1/3" with a tiny bar, beside the block title. */
@@ -12,7 +12,7 @@ export function StepProgress({ done, total, color }: { done: number; total: numb
   return (
     <span
       className="tabular flex shrink-0 items-center gap-1.5 rounded-full px-2 py-px text-[10.5px] font-semibold"
-      style={{ background: tint(color, complete ? 28 : 14), color: complete ? undefined : color }}
+      style={{ background: tint(color, complete ? 28 : 14), color: complete ? undefined : ink(color) }}
       title={`${done} of ${total} steps done`}
     >
       {complete ? (
@@ -80,7 +80,7 @@ export function StepList({ block, color, height, editable }: { block: Block; col
               openBlock(block.id);
             }}
             className="h-6 pl-[26px] text-[12px] font-medium hover:underline"
-            style={{ color }}
+            style={{ color: ink(color) }}
           >
             +{hidden} more
           </button>

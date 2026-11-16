@@ -1,4 +1,6 @@
 import { useEffect } from "react";
+import { NotificationsBanner } from "@/features/system/NotificationsBanner";
+import { useDailyMoments } from "@/features/system/useDailyMoments";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useApp, useHydrated } from "@/store/app";
 import { SAVE_ERROR_EVENT } from "@/platform/storage";
@@ -19,7 +21,8 @@ import { Onboarding } from "@/features/onboarding/Onboarding";
 import { QuickAdd } from "@/features/overlays/QuickAdd";
 import { BlockDetails } from "@/features/overlays/BlockDetails";
 import { CommandPalette } from "@/features/overlays/CommandPalette";
-import { CatchUp, EveningReview, MorningBriefing } from "@/features/overlays/Rituals";
+import { CatchUp, EveningReview } from "@/features/overlays/Rituals";
+import { PlanMyDay } from "@/features/overlays/PlanMyDay";
 import { Toaster } from "@/features/overlays/Toaster";
 import { NotificationPreview, TrayPopover } from "@/features/dev/BrowserPreviews";
 import { DevPanel } from "@/features/dev/DevPanel";
@@ -36,6 +39,7 @@ export default function App() {
   useShortcuts();
   useAppMenu();
   useSaveErrors();
+  useDailyMoments(hydrated);
 
   // Loading the saved state (a few ms from the database): show nothing rather than a wrong screen.
   if (!hydrated) return null;
@@ -55,6 +59,7 @@ export default function App() {
     <MotionConfig reducedMotion="user">
       <motion.div className="flex h-full flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
         <TitleBar />
+        <NotificationsBanner />
         <div className="flex min-h-0 flex-1">
           <NavRail />
           <main className="relative min-w-0 flex-1">
@@ -97,7 +102,7 @@ export default function App() {
       <QuickAdd />
       <BlockDetails />
       <CommandPalette />
-      <MorningBriefing />
+      <PlanMyDay />
       <EveningReview />
       <CatchUp />
       {!isDesktop && <TrayPopover />}

@@ -120,3 +120,19 @@ export function startOfDay(d: Date) {
 export function daysBetween(a: Date, b: Date) {
   return Math.round((startOfDay(b).getTime() - startOfDay(a).getTime()) / 86_400_000);
 }
+
+/**
+ * A deadline for display: "today", "tomorrow", "Friday" (this week), "Nov 20", or "overdue".
+ * Older items saved a weekday name instead of a date; those are shown as they are.
+ */
+export function dueLabel(due: string, today: Date = new Date()) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) return due.toLowerCase();
+  const [y, m, d] = due.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const days = daysBetween(today, date);
+  if (days < 0) return "overdue";
+  if (days === 0) return "today";
+  if (days === 1) return "tomorrow";
+  if (days < 7) return date.toLocaleDateString(undefined, { weekday: "long" });
+  return shortDate(due);
+}

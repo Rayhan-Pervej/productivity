@@ -35,7 +35,7 @@ export interface Scale {
 /** Step list geometry, shared by the scale (how tall a block must be) and the step list (how many rows fit). */
 export const STEP_ROW = 24;
 export const STEP_HEADER = 44; // title row + padding above the list
-export const MAX_VISIBLE_STEPS = 5;
+const MAX_VISIBLE_STEPS = 5;
 
 /** Minimum vertical space between two time labels. */
 export const LABEL_GAP = 18;

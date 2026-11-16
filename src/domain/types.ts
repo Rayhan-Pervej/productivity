@@ -111,4 +111,11 @@ export interface Settings {
   notificationSound: string;
   /** A soft sound when you mark something done. */
   completionSound: boolean;
+  /** Plan my day: once a day, when quiet hours end. */
+  planMyDay: boolean;
+  /** Close my day: once a day, at `reviewAt`. */
+  closeMyDay: boolean;
+  /** The last day (YYYY-MM-DD) Plan my day / Close my day was shown, so each comes once a day. */
+  lastMorning?: string;
+  lastEvening?: string;
 }

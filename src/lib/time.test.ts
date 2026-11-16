@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fmtDuration, fmtTime, inQuietHours, setTimeFormat } from "./time";
+import { dueLabel, fmtDuration, fmtTime, inQuietHours, setTimeFormat } from "./time";
 
 describe("time helpers", () => {
   it("formats 12h and 24h clocks", () => {
@@ -21,5 +21,18 @@ describe("time helpers", () => {
     expect(inQuietHours(600, 30, 420)).toBe(false);
     expect(inQuietHours(23 * 60 + 30, 23 * 60, 7 * 60)).toBe(true);
     expect(inQuietHours(12 * 60, 23 * 60, 7 * 60)).toBe(false);
+  });
+});
+
+describe("dueLabel", () => {
+  const tue = new Date(2026, 10, 10);
+  it("says when a deadline is, in plain words", () => {
+    expect(dueLabel("2026-11-10", tue)).toBe("today");
+    expect(dueLabel("2026-11-11", tue)).toBe("tomorrow");
+    expect(dueLabel("2026-11-13", tue)).toBe("Friday");
+    expect(dueLabel("2026-11-09", tue)).toBe("overdue");
+  });
+  it("shows older weekday-only deadlines as they were saved", () => {
+    expect(dueLabel("Friday", tue)).toBe("friday");
   });
 });

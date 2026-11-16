@@ -9,6 +9,7 @@ mod app_name;
 mod commands;
 mod db;
 mod identity;
+mod notify_settings;
 mod reminders;
 mod sound;
 mod store;
@@ -58,6 +59,8 @@ pub fn run() {
             reminders::take_pending_actions,
             reminders::preview_notification,
             sound::play_sound,
+            notify_settings::notifications_status,
+            notify_settings::open_notification_settings,
             set_autostart,
             get_autostart,
             can_autostart,

@@ -12,7 +12,7 @@ use std::collections::HashSet;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use chrono::{Local, TimeZone};
+use chrono::{Local, TimeZone, Timelike};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::Notify;
@@ -37,7 +37,7 @@ const SNOOZE_MS: i64 = 10 * 60 * 1000;
 pub struct Reminder {
     pub id: String,
     pub block_id: String,
-    /// "upcoming" | "starting" | "ending" | "missed"
+    /// "upcoming" | "starting" | "followup" | "ending" | "missed" | "plan" | "review"
     pub kind: String,
     pub title: String,
     pub body: String,
@@ -50,7 +50,7 @@ pub struct Reminder {
 #[serde(rename_all = "camelCase")]
 pub struct Action {
     pub block_id: String,
-    /// "done" | "skip" | "extend" | "tomorrow" | "backlog" | "focus" | "catchup"
+    /// "done" | "skip" | "extend" | "tomorrow" | "backlog" | "focus" | "catchup" | "plan" | "review"
     pub action: String,
 }
 
@@ -62,6 +62,8 @@ pub struct Scheduler {
     fired: Mutex<HashSet<String>>,
     /// Actions taken while the window was closed; the UI collects them when it opens.
     pending: Mutex<Vec<Action>>,
+    /// Blocks you've answered from a toast (any button): their follow-up isn't needed.
+    acknowledged: Mutex<HashSet<String>>,
     /// Just after the next local midnight: roll the day over.
     next_day_at: Mutex<i64>,
     wake: Notify,
@@ -111,9 +113,33 @@ pub fn start_new_day(app: &AppHandle) {
 }
 
 /// Show one notification right now (used by the dev prototype controls to test real toasts).
+/// `later_in_minutes` forces an "Until …" snooze button that far ahead, so smarter snooze can be
+/// tested without being inside another block.
 #[tauri::command]
-pub fn preview_notification(app: AppHandle, reminder: Reminder) {
-    deliver(&app, vec![reminder], store::now_ms());
+pub fn preview_notification(app: AppHandle, reminder: Reminder, later_in_minutes: Option<f64>) {
+    let now = store::now_ms();
+    let Some(minutes) = later_in_minutes else {
+        deliver(&app, vec![reminder], now);
+        return;
+    };
+    let at = now + (minutes * 60_000.0).round() as i64;
+    let label = {
+        let local = Local.timestamp_millis_opt(at).single().unwrap_or_else(Local::now);
+        let minute = f64::from(local.hour() * 60 + local.minute());
+        let twelve = app
+            .state::<Db>()
+            .0
+            .lock()
+            .map(|c| store::twelve_hour(&c))
+            .unwrap_or(true);
+        format!("Until {}", store::fmt_time(minute, twelve))
+    };
+    let mut buttons = buttons_for(&app, &reminder, now);
+    buttons.retain(|(_, a)| !a.starts_with("later:"));
+    let skip = buttons.iter().position(|(_, a)| a == "skip").unwrap_or(buttons.len());
+    buttons.insert(skip, (label, format!("later:{at}")));
+    let (title, body) = (reminder.title.clone(), reminder.body.clone());
+    notify(&app, &title, &body, &buttons, Some(reminder));
 }
 
 #[tauri::command]
@@ -165,17 +191,30 @@ pub fn start(app: AppHandle) {
     });
 }
 
+/// Reminders that still matter when late (the PC was asleep): they're delivered, not summarized.
+const ALWAYS_DELIVER: [&str; 2] = ["plan", "review"];
+
 fn deliver(app: &AppHandle, due: Vec<Reminder>, now: i64) {
-    let (late, fresh): (Vec<_>, Vec<_>) = due.into_iter().partition(|r| now - r.at > LATE_MS);
+    let (late, fresh): (Vec<_>, Vec<_>) = due
+        .into_iter()
+        .partition(|r| now - r.at > LATE_MS && !ALWAYS_DELIVER.contains(&r.kind.as_str()));
+    // A late follow-up is stale: its block's own reminders already said it all.
+    let late: Vec<_> = late.into_iter().filter(|r| r.kind != "followup").collect();
 
     for r in fresh {
-        let buttons: &[(&str, &str)] = match r.kind.as_str() {
-            "ending" => &[("Done", "done"), ("+10 min", "extend"), ("Not yet", "dismiss")],
-            "missed" => &[("Tomorrow", "tomorrow"), ("Backlog", "backlog"), ("Open", "open")],
-            _ => &[("Start focus", "focus"), ("Snooze", "snooze"), ("Skip", "skip")],
-        };
+        if r.kind == "followup"
+            && app
+                .state::<Scheduler>()
+                .acknowledged
+                .lock()
+                .unwrap()
+                .contains(&r.block_id)
+        {
+            continue;
+        }
+        let buttons = buttons_for(app, &r, now);
         let (title, body) = (r.title.clone(), r.body.clone());
-        notify(app, &title, &body, buttons, Some(r));
+        notify(app, &title, &body, &buttons, Some(r));
     }
 
     // One calm summary instead of a burst of stale notifications.
@@ -185,27 +224,96 @@ fn deliver(app: &AppHandle, due: Vec<Reminder>, now: i64) {
             "{n} {} passed while you were away.",
             if n == 1 { "reminder" } else { "reminders" }
         );
-        notify(app, "Welcome back", &body, &[("Review", "catchup")], None);
+        notify(app, "Welcome back", &body, &[("Review".into(), "catchup".into())], None);
     }
+}
+
+/// The buttons on a reminder's toast (Windows shows up to five).
+fn buttons_for(app: &AppHandle, r: &Reminder, now: i64) -> Vec<(String, String)> {
+    let fixed = |list: &[(&str, &str)]| list.iter().map(|(l, a)| (l.to_string(), a.to_string())).collect();
+    match r.kind.as_str() {
+        "ending" => fixed(&[("Done", "done"), ("+10 min", "extend"), ("Not yet", "dismiss")]),
+        "missed" => fixed(&[("Tomorrow", "tomorrow"), ("Backlog", "backlog"), ("Open", "open")]),
+        "plan" => fixed(&[("Plan my day", "plan")]),
+        "review" => fixed(&[("Close my day", "review")]),
+        kind => {
+            // "upcoming", "starting", "followup": act on it, or put it off.
+            let mut buttons: Vec<(String, String)> = if kind == "upcoming" {
+                fixed(&[("Snooze 10 min", "snooze")])
+            } else {
+                fixed(&[("Done", "done"), ("Snooze 10 min", "snooze")])
+            };
+            if kind != "upcoming" {
+                if let Some(label) = later_button(app, &r.block_id, now) {
+                    buttons.push(label);
+                }
+            }
+            buttons.push(("Skip".into(), "skip".into()));
+            if kind == "starting" {
+                buttons.insert(0, ("Start focus".into(), "focus".into()));
+                buttons.retain(|(_, a)| a != "done"); // it just started: focus, not done
+            }
+            buttons
+        }
+    }
+}
+
+/// "Until 11:30 AM": snooze until whatever you're in right now ends (when that's at least 15 min away).
+fn later_button(app: &AppHandle, block_id: &str, now: i64) -> Option<(String, String)> {
+    let db = app.state::<Db>();
+    let conn = db.0.lock().ok()?;
+    let today = store::local_today();
+    let midnight = Local
+        .from_local_datetime(&today.and_hms_opt(0, 0, 0)?)
+        .earliest()?
+        .timestamp_millis();
+    let now_min = (now - midnight) as f64 / 60_000.0;
+    let until = store::busy_until(&conn, today, block_id, now_min)?;
+    if until < now_min + 15.0 {
+        return None;
+    }
+    let at = midnight + (until * 60_000.0).round() as i64;
+    Some((
+        format!("Until {}", store::fmt_time(until, store::twelve_hour(&conn))),
+        format!("later:{at}"),
+    ))
+}
+
+/// Remind again at `at` (Unix ms), outside the plan, so it survives a recompute.
+fn snooze(app: &AppHandle, r: &Reminder, at: i64) {
+    let mut again = r.clone();
+    again.at = at;
+    again.id = format!("{}:snooze:{}", r.id, at);
+    let scheduler = app.state::<Scheduler>();
+    scheduler.snoozed.lock().unwrap().push(again);
+    scheduler.wake.notify_one();
 }
 
 fn handle(app: &AppHandle, reminder: Option<&Reminder>, action: Option<&str>) {
     let block_id = reminder.map(|r| r.block_id.clone()).unwrap_or_default();
+    // You answered this block (any button, or opening it): no follow-up needed.
+    if !block_id.is_empty() {
+        app.state::<Scheduler>()
+            .acknowledged
+            .lock()
+            .unwrap()
+            .insert(block_id.clone());
+    }
     match action {
-        // Snooze is handled entirely here, no window needed.
+        // Snoozing is handled entirely here, no window needed.
         Some("snooze") => {
             if let Some(r) = reminder {
-                let mut again = r.clone();
-                again.at = store::now_ms() + SNOOZE_MS;
-                again.id = format!("{}:snooze:{}", r.id, again.at);
-                let scheduler = app.state::<Scheduler>();
-                scheduler.snoozed.lock().unwrap().push(again);
-                scheduler.wake.notify_one();
+                snooze(app, r, store::now_ms() + SNOOZE_MS);
+            }
+        }
+        Some(a) if a.starts_with("later:") => {
+            if let (Some(r), Ok(at)) = (reminder, a["later:".len()..].parse::<i64>()) {
+                snooze(app, r, at);
             }
         }
         Some("dismiss") => {}
         // These need the UI in front of the user.
-        Some(a @ ("focus" | "catchup")) => {
+        Some(a @ ("focus" | "catchup" | "plan" | "review")) => {
             dispatch(
                 app,
                 Action {
@@ -228,6 +336,19 @@ fn handle(app: &AppHandle, reminder: Option<&Reminder>, action: Option<&str>) {
     }
 }
 
+/// Open Plan my day ("plan") or Close my day ("review") now, e.g. from the tray menu.
+/// Same path as the notification buttons: works whether or not the window is open.
+pub fn open_moment(app: &AppHandle, moment: &str) {
+    dispatch(
+        app,
+        Action {
+            block_id: String::new(),
+            action: moment.into(),
+        },
+    );
+    window::show_main(app, None);
+}
+
 /// Send to the open window, or keep it until the window opens next.
 fn dispatch(app: &AppHandle, action: Action) {
     if window::is_open(app) {
@@ -238,7 +359,7 @@ fn dispatch(app: &AppHandle, action: Action) {
 }
 
 #[cfg(windows)]
-fn notify(app: &AppHandle, title: &str, body: &str, buttons: &[(&str, &str)], reminder: Option<Reminder>) {
+fn notify(app: &AppHandle, title: &str, body: &str, buttons: &[(String, String)], reminder: Option<Reminder>) {
     use tauri_winrt_notification::Toast;
 
     // Our own registered identity; PowerShell's only as a last-resort fallback.
@@ -279,6 +400,6 @@ fn notify(app: &AppHandle, title: &str, body: &str, buttons: &[(&str, &str)], re
 }
 
 #[cfg(not(windows))]
-fn notify(_app: &AppHandle, title: &str, body: &str, _buttons: &[(&str, &str)], _reminder: Option<Reminder>) {
+fn notify(_app: &AppHandle, title: &str, body: &str, _buttons: &[(String, String)], _reminder: Option<Reminder>) {
     println!("[reminder] {title}: {body}");
 }

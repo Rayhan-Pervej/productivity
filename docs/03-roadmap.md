@@ -2,7 +2,7 @@
 
 Feature IDs refer to the [Feature Catalog](02-feature-catalog.md).
 
-## v0.1: Personal MVP  ← **current target**
+## v0.1: Personal MVP  ✅ **done (November 2026)**
 
 **Goal:** replace "no plan" with a plan that runs itself, reminds reliably, and recovers from misses.
 
@@ -17,7 +17,17 @@ Feature IDs refer to the [Feature Catalog](02-feature-catalog.md).
 
 **Exit criteria:** see [v0.1 Spec → Definition of Done](04-v0.1-spec.md#11-definition-of-done).
 
-## v0.2: Smart & adaptive
+**How it shipped:**
+- R2 became **Plan my day** (pick up to 3, suggested free slots); R1 is **Close my day**. Both open once a day by
+  themselves, from a notification, or from the tray menu.
+- N2 escalation is one follow-up 10 minutes after a block starts, if you haven't answered; then it's left quietly.
+- N4 smart snooze: "Snooze 10 min" and "Until <time>" (when the block you're in now ends).
+- Shipped early from v0.2: D8 Focus timer, D9 Now strip, Q8 backups and export, N7 full-screen detection (no sound).
+- Deadlines (`by fri`) are shown in Plan my day each morning. Deadline notifications were tried and dropped as noise.
+- Moved to v0.2: P4 priority / energy, P5 extra repeat patterns (every N days, monthly), and a deliberate pass on
+  Q4 edge cases (DST, time zone travel, blocks across midnight).
+
+## v0.2: Smart & adaptive  ← **next**
 
 **Goal:** solve "I'm stuck" directly, and make plan breakage painless.
 

@@ -15,12 +15,14 @@ export const DEFAULT_SETTINGS: Settings = {
   timeFormat: systemTimeFormat(),
   notificationSound: DEFAULT_REMINDER_SOUND,
   completionSound: true,
+  planMyDay: true,
+  closeMyDay: true,
 };
 
 export const blocksFor = (templates: Template[], id: string) => blocksFromTemplate(templates.find((t) => t.id === id) ?? templates[0]);
 
 /** Whole days from the local day `key` (e.g. "2026-11-10") until today. */
-export const daysSince = (key: string) => {
+const daysSince = (key: string) => {
   const [y, m, d] = key.split("-").map(Number);
   const then = new Date(y, m - 1, d).getTime();
   const today = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime();

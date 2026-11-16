@@ -5,7 +5,7 @@ import { parseQuickAdd, TYPE_LABEL } from "@/lib/parse";
 import { overlapping } from "@/lib/day";
 import { repeatLabel, repeatPhrase, untilPhrase } from "@/lib/repeat";
 import { blocksForDay } from "@/lib/days";
-import { fmtDuration, fmtTime } from "@/lib/time";
+import { dueLabel, fmtDuration, fmtTime } from "@/lib/time";
 import { AreaDot, Kbd, Modal } from "@/components/ui";
 
 const EXAMPLES = [
@@ -121,7 +121,7 @@ function QuickAddBody() {
                 <CalendarClock size={12} /> Tonight
               </Chip>
             )}
-            {parsed.due && <Chip className="text-attention">Due {parsed.due}</Chip>}
+            {parsed.due && <Chip className="text-attention">Due {dueLabel(parsed.due)}</Chip>}
             {(parsed.durationExplicit || parsed.start !== undefined) && (
               <Chip>
                 <Timer size={12} /> {fmtDuration(parsed.duration)}

@@ -24,17 +24,14 @@ export interface Parsed {
 }
 
 const DEFAULT_DURATION = 30;
-const DUE_DAYS: Record<string, string> = {
-  mon: "Monday",
-  tue: "Tuesday",
-  wed: "Wednesday",
-  thu: "Thursday",
-  fri: "Friday",
-  sat: "Saturday",
-  sun: "Sunday",
-  today: "Today",
-  tomorrow: "Tomorrow",
-};
+/** "by fri" means the coming Friday (today, if it is Friday). Saved as a date, so reminders know which one. */
+function dueDate(word: string, today: Date) {
+  const w = word.toLowerCase();
+  const d = startOfDay(today);
+  if (w === "tomorrow") d.setDate(d.getDate() + 1);
+  else if (w !== "today") d.setDate(d.getDate() + ((WEEKDAYS.indexOf(w.slice(0, 3)) - d.getDay() + 7) % 7));
+  return isoDay(d);
+}
 
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 const WEEKDAY_RE =
@@ -73,7 +70,7 @@ export function parseQuickAdd(input: string, areas: Area[], today: Date = new Da
   // deadline: "by fri", "by tomorrow"
   let due: string | undefined;
   const by = take(/\sby\s+(mon|tue|wed|thu|fri|sat|sun|today|tomorrow)\w*/i);
-  if (by) due = DUE_DAYS[by[1].toLowerCase()];
+  if (by) due = dueDate(by[1], today);
 
   // repeat: "every day", "everyday", "daily", "every weekday", "weekends", "every sun, tue and thu"
   let repeat: Weekday[] | undefined;

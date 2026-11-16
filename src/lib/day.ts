@@ -97,3 +97,19 @@ export function freeStarts(blocks: Block[], now: number, duration: number, limit
   }
   return result;
 }
+
+/**
+ * The first start (from `from`, on a 15-minute grid) where a task of `duration` fits.
+ * Tracked blocks are always busy. A background band is busy too, unless it is the task's own area:
+ * an Office task can go inside Office, a personal one can't.
+ */
+export function suggestStart(blocks: Block[], from: number, duration: number, areaId?: string, dayEnd = 24 * 60) {
+  const busy = blocks.filter((b) => b.status !== "skipped" && (b.kind === "commitment" || b.areaId !== areaId));
+  const grid = Math.ceil(from / 15) * 15;
+  const candidates = [grid, ...busy.map((b) => b.end)].filter((t) => t >= grid).sort((a, b) => a - b);
+  for (const t of candidates) {
+    if (t + duration > dayEnd) break;
+    if (!busy.some((b) => t < b.end && b.start < t + duration)) return t;
+  }
+  return null;
+}

@@ -1,7 +1,7 @@
 // How the timeline turns minutes into height. Pure functions, so the rules can be tested.
 
 /** Tracked time: 72 px for the first hour. */
-export const PX_PER_MIN = 72 / 60;
+const PX_PER_MIN = 72 / 60;
 
 /**
  * Height for tracked time: the first hour at full scale (72 px), longer stretches grow more slowly,
@@ -46,7 +46,7 @@ export function dayWindow(quietFrom: number, quietTo: number) {
 }
 
 /** Minutes at each end of a gap that keep readable room (next to the blocks around it). */
-export const GAP_EDGE_MIN = 15;
+const GAP_EDGE_MIN = 15;
 
 /**
  * Where a minute sits inside a stretch of empty time that is `total` minutes long and `height` px tall.

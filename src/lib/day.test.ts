@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayProgress, freeStarts, missedBlocks, suggest } from "./day";
+import { dayProgress, freeStarts, missedBlocks, suggest, suggestStart } from "./day";
 import type { Block, Task } from "@/domain/types";
 
 const block = (over: Partial<Block>): Block => ({
@@ -51,5 +51,23 @@ describe("day logic", () => {
       { id: "2", title: "due", type: "deadline", due: "Today", duration: 10, done: false },
     ];
     expect(suggest(tasks, 30)[0].id).toBe("2");
+  });
+});
+
+describe("suggestStart (Plan my day)", () => {
+  const office = block({ kind: "context", areaId: "office", start: 480, end: 1050 });
+  const standup = block({ start: 510, end: 540 });
+
+  it("puts an Office task inside Office, after what's already there", () => {
+    expect(suggestStart([office, standup], 510, 60, "office")).toBe(540);
+  });
+
+  it("keeps a personal task out of Office", () => {
+    expect(suggestStart([office, standup], 510, 60, "personal")).toBe(1050);
+  });
+
+  it("starts on the 15-minute grid and gives up when the day is full", () => {
+    expect(suggestStart([], 1081, 30)).toBe(1095);
+    expect(suggestStart([], 1430, 30)).toBeNull();
   });
 });

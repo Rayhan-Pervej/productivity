@@ -291,8 +291,77 @@ fn reminders_come_from_stored_tracked_blocks() {
     snap.state.blocks.push(block("ctx", "context", 540.0, 1020.0, true));
     save(&mut conn, &snap).unwrap();
     let r = reminders_for_today(&conn, d(far_future)).unwrap();
-    // Two tracked blocks × (upcoming, starting, ending); background blocks never remind.
-    assert_eq!(r.len(), 6);
+    // Two tracked blocks: each gets upcoming, starting, ending and (both are over 20 min) a follow-up.
+    // Background blocks never remind. Plus the day's two moments.
+    for (kind, n) in [
+        ("upcoming", 2),
+        ("starting", 2),
+        ("ending", 2),
+        ("followup", 2),
+        ("plan", 1),
+        ("review", 1),
+    ] {
+        assert_eq!(count(&r, kind), n, "{kind}");
+    }
     assert!(r.iter().all(|x| x.block_id != "ctx"));
     assert!(r.iter().any(|x| x.title == "Time for Office"));
+}
+
+fn count(r: &[crate::reminders::Reminder], kind: &str) -> usize {
+    r.iter().filter(|x| x.kind == kind).count()
+}
+
+#[test]
+fn short_blocks_get_no_follow_up() {
+    let mut conn = open_in_memory();
+    let day = "2099-01-01";
+    let mut snap = snapshot(day);
+    snap.state.blocks = vec![block("quick", "commitment", 600.0, 615.0, false)];
+    save(&mut conn, &snap).unwrap();
+    let r = reminders_for_today(&conn, d(day)).unwrap();
+    assert_eq!(count(&r, "followup"), 0);
+    assert_eq!(count(&r, "starting"), 1);
+}
+
+#[test]
+fn daily_moments_come_once_a_day_and_can_be_turned_off() {
+    let day = "2099-01-01";
+    let moments = |settings: Value| {
+        let mut conn = open_in_memory();
+        let mut snap = snapshot(day);
+        snap.state.settings = settings;
+        save(&mut conn, &snap).unwrap();
+        let r = reminders_for_today(&conn, d(day)).unwrap();
+        (count(&r, "plan"), count(&r, "review"))
+    };
+    let base = json!({ "reviewAt": 1410, "quietFrom": 30, "quietTo": 420 });
+    assert_eq!(moments(base.clone()), (1, 1));
+
+    let mut done = base.clone();
+    done["lastMorning"] = json!(day);
+    done["lastEvening"] = json!(day);
+    assert_eq!(moments(done), (0, 0), "already shown today");
+
+    let mut off = base;
+    off["planMyDay"] = json!(false);
+    off["closeMyDay"] = json!(false);
+    assert_eq!(moments(off), (0, 0), "turned off in Settings");
+}
+
+#[test]
+fn deadlines_dont_notify() {
+    // Deadlines are shown in Plan my day each morning, never as a notification.
+    let mut conn = open_in_memory();
+    let day = "2099-01-01";
+    let mut snap = snapshot(day);
+    snap.state.anytime = vec![Task {
+        id: "today".into(),
+        title: "Submit invoice".into(),
+        kind: "deadline".into(),
+        due: Some(day.into()),
+        ..Default::default()
+    }];
+    save(&mut conn, &snap).unwrap();
+    let r = reminders_for_today(&conn, d(day)).unwrap();
+    assert!(r.iter().all(|x| x.block_id != "today"));
 }

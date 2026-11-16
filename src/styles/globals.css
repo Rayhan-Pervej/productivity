@@ -78,6 +78,17 @@
     user-select: text;
   }
 
+  /* The open list of a dropdown is drawn by Windows; give it our colors so it matches the theme
+     (otherwise it can fall back to the system's light gray in dark mode). */
+  select {
+    color-scheme: inherit;
+  }
+  select option,
+  select optgroup {
+    background-color: var(--surface);
+    color: var(--text);
+  }
+
   /* Everything clickable shows the hand cursor (Tailwind v4 resets buttons to the default arrow). */
   a[href],
   button,

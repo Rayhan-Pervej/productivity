@@ -77,6 +77,8 @@ export interface State extends Snapshot {
   toggleTask: (id: string) => void;
   startTask: (id: string) => void;
   scheduleTask: (id: string, start: number) => void;
+  /** Plan my day: give each picked item (from Anytime, Inbox or Backlog) its time. One undo. */
+  planDay: (picks: { id: string; start: number; duration: number }[]) => void;
   addParsed: (p: Parsed) => void;
   inboxToToday: (id: string) => void;
   letGoInbox: (id: string) => void;

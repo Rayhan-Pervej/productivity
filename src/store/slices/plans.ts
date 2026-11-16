@@ -74,7 +74,8 @@ export const plansSlice: Slice<
     const planBlocks = blocksFor(templates, todayPlan.id);
     const yourBlocks = s.blocks.filter((b) => !b.fromPlan || b.routineId);
     set({
-      settings,
+      // You just planned your day in setup: Plan my day doesn't need to pop up on top of it.
+      settings: { ...settings, lastMorning: isoDay() },
       templates,
       onboarded: true,
       activeTemplateId: todayPlan.id,

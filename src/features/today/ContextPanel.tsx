@@ -4,7 +4,7 @@ import { ArrowRight, CalendarClock, Check, ChevronDown, Moon, Play, RefreshCw, S
 import { AnimatePresence, motion } from "motion/react";
 import { useApp, useCurrent, type Triage } from "@/store/app";
 import { freeStarts, freeWindow, missedBlocks, nextCommitment, suggest } from "@/lib/day";
-import { fmtCountdown, fmtDuration, fmtTime, inQuietHours } from "@/lib/time";
+import { dueLabel, fmtCountdown, fmtDuration, fmtTime, inQuietHours } from "@/lib/time";
 import { cn, ink, tint } from "@/lib/utils";
 import { AreaDot, Button, ProgressRing, SectionLabel, TimeSelect, useArea } from "@/components/ui";
 import { showMenu, wantsNativeMenu } from "@/components/ContextMenu";
@@ -79,7 +79,7 @@ export function AnytimeSection() {
 }
 
 /** The single most important card: what to do right now. */
-export function NowCard() {
+function NowCard() {
   const { commitment, context } = useCurrent();
   const blocks = useApp((s) => s.blocks);
   const now = useApp((s) => s.now);
@@ -207,7 +207,7 @@ export function SuggestionCard({ minutes, until, large = false }: { minutes: num
                 {area && <AreaDot color={area.color} />}
                 {area?.name}
                 {pick.duration && <span>· {fmtDuration(pick.duration)}</span>}
-                {pick.due && <span className="text-attention">· due {pick.due.toLowerCase()}</span>}
+                {pick.due && <span className="text-attention">· due {dueLabel(pick.due)}</span>}
               </div>
             </motion.div>
           </AnimatePresence>
@@ -312,13 +312,7 @@ function TaskRow({ task }: { task: Task }) {
   const [menu, setMenu] = useState(false);
   const row = useRef<HTMLDivElement>(null);
   useDismiss(menu, () => setMenu(false), [row]);
-  const meta = task.due
-    ? `Due ${task.due.toLowerCase()}`
-    : task.type === "habit"
-      ? "Daily"
-      : task.duration
-        ? fmtDuration(task.duration)
-        : "";
+  const meta = task.due ? `Due ${dueLabel(task.due)}` : task.type === "habit" ? "Daily" : task.duration ? fmtDuration(task.duration) : "";
 
   return (
     <div ref={row} className="relative">

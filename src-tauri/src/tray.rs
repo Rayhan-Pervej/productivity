@@ -10,9 +10,12 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Open Today", true, None::<&str>)?;
     let quick = MenuItem::with_id(app, "quick", "Quick add\tCtrl+Alt+Space", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
+    let plan = MenuItem::with_id(app, "plan", "Plan my day", true, None::<&str>)?;
+    let review = MenuItem::with_id(app, "review", "Close my day", true, None::<&str>)?;
+    let separator2 = PredefinedMenuItem::separator(app)?;
     let name = crate::app_name::get(app);
     let quit = MenuItem::with_id(app, "quit", format!("Quit {name}"), true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &quick, &separator, &quit])?;
+    let menu = Menu::with_items(app, &[&open, &quick, &separator, &plan, &review, &separator2, &quit])?;
 
     let mut tray = TrayIconBuilder::with_id("main")
         .tooltip(&name)
@@ -21,6 +24,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
         .on_menu_event(|app, event| match event.id.as_ref() {
             "open" => show_main(app, None),
             "quick" => show_main(app, Some(Intent::QuickAdd)),
+            "plan" | "review" => crate::reminders::open_moment(app, event.id.as_ref()),
             "quit" => app.exit(0),
             _ => {}
         })

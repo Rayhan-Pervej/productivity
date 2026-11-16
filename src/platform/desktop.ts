@@ -15,7 +15,7 @@ export { isDesktop };
 
 interface Action {
   blockId: string;
-  action: "done" | "skip" | "extend" | "tomorrow" | "backlog" | "focus" | "catchup";
+  action: "done" | "skip" | "extend" | "tomorrow" | "backlog" | "focus" | "catchup" | "plan" | "review";
 }
 
 function apply(a: Action) {
@@ -40,6 +40,12 @@ function apply(a: Action) {
       break;
     case "catchup":
       s.open("catchup");
+      break;
+    case "plan":
+      s.open("briefing");
+      break;
+    case "review":
+      s.open("review");
       break;
   }
 }
@@ -68,6 +74,44 @@ export async function startDesktopBridge() {
  * Dev tool: send a real Windows notification now, for the block the UI would use
  * (using the simulated clock), so notification buttons can be tested end to end.
  */
+/** The extra real toasts the prototype controls can show (beyond the four block kinds). */
+export type PreviewExtra = "followup" | "snooze";
+
+/** Follow-up and smarter snooze toasts, built from your real blocks when there are any. */
+export async function previewExtra(kind: PreviewExtra) {
+  const s = useApp.getState();
+  const tracked = s.blocks.filter((b) => b.kind === "commitment" && b.status === "planned");
+  const block = tracked.find((b) => b.start <= s.now && s.now < b.end) ?? tracked[0];
+  const show = (reminder: { blockId: string; kind: string; title: string; body: string }, laterInMinutes?: number) =>
+    invoke("preview_notification", {
+      reminder: { id: `preview:${kind}:${Date.now()}`, at: Date.now(), ...reminder },
+      laterInMinutes,
+    });
+
+  if (kind === "followup") {
+    const title = block?.title ?? "Sample block";
+    return show({
+      blockId: block?.id ?? "",
+      kind: "followup",
+      title: `Still on ${title}?`,
+      body: `It started at ${fmtTime(block?.start ?? s.now)}. Done, or skip it?`,
+    });
+  }
+  if (kind === "snooze") {
+    // A "starting" toast with its "Until …" button set 2 minutes ahead: press it, and it comes back then.
+    const area = s.areas.find((a) => a.id === block?.areaId)?.name;
+    return show(
+      {
+        blockId: block?.id ?? "",
+        kind: "starting",
+        title: `Time for ${area ?? block?.title ?? "focus"}`,
+        body: block?.title ?? "Sample block",
+      },
+      2,
+    );
+  }
+}
+
 export async function previewNotification(kind: "upcoming" | "starting" | "ending" | "missed") {
   const s = useApp.getState();
   const tracked = s.blocks.filter((b) => b.kind === "commitment" && b.status === "planned");
@@ -104,6 +148,12 @@ export async function previewNotification(kind: "upcoming" | "starting" | "endin
     reminder: { id: `preview:${kind}:${Date.now()}`, blockId: target.id, kind, title, body, at: Date.now() },
   });
 }
+
+/** Whether Windows shows our notifications: "on", "app-off" (Wholeday switched off) or "all-off". */
+export type NotificationsStatus = "on" | "app-off" | "all-off";
+export const notificationsStatus = () => invoke<NotificationsStatus>("notifications_status");
+/** Opens Windows Settings → Notifications. */
+export const openNotificationSettings = () => invoke("open_notification_settings");
 
 export const setAutostart = (enabled: boolean) => invoke("set_autostart", { enabled });
 export const getAutostart = () => invoke<boolean>("get_autostart");

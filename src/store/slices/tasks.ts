@@ -12,6 +12,7 @@ export const tasksSlice: Slice<
   | "toggleTask"
   | "startTask"
   | "scheduleTask"
+  | "planDay"
   | "addParsed"
   | "inboxToToday"
   | "letGoInbox"
@@ -47,6 +48,39 @@ export const tasksSlice: Slice<
       subtasks: [],
     };
     change((st) => ({ blocks: [...st.blocks, block], anytime: st.anytime.filter((t) => t.id !== id) }), `Started · ${task.title}`);
+  },
+
+  planDay: (picks) => {
+    if (!picks.length) return;
+    const s = get();
+    // Inbox items have no area yet; they land in Personal.
+    const findTask = (id: string): { id: string; title: string; areaId?: string } | undefined =>
+      s.anytime.find((t) => t.id === id) ?? s.backlog.find((t) => t.id === id) ?? s.inbox.find((t) => t.id === id);
+    const blocks: Block[] = [];
+    for (const p of picks) {
+      const task = findTask(p.id);
+      if (!task) continue;
+      blocks.push({
+        id: task.id,
+        title: task.title,
+        areaId: task.areaId ?? "personal",
+        kind: "commitment",
+        start: p.start,
+        end: Math.min(p.start + p.duration, 24 * 60),
+        status: "planned",
+        subtasks: [],
+      });
+    }
+    const ids = new Set(blocks.map((b) => b.id));
+    change(
+      (st) => ({
+        blocks: [...st.blocks, ...blocks],
+        anytime: st.anytime.filter((t) => !ids.has(t.id)),
+        backlog: st.backlog.filter((t) => !ids.has(t.id)),
+        inbox: st.inbox.filter((t) => !ids.has(t.id)),
+      }),
+      `Planned ${blocks.length} ${blocks.length === 1 ? "thing" : "things"} for today`,
+    );
   },
 
   /** Move an anytime task onto today's timeline at a given time. */

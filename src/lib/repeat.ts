@@ -32,7 +32,7 @@ export function repeatLabel(days: Weekday[]) {
 export const isSameDays = (a: Weekday[], b: Weekday[]) => same(normalizeDays(a), normalizeDays(b));
 
 /** Does this routine happen on that date (right weekday, not past its end)? */
-export function routineOn(r: Routine, date: Date) {
+function routineOn(r: Routine, date: Date) {
   const day = isoDay(date);
   return r.days.includes(date.getDay() as Weekday) && (!r.until || day <= r.until) && !r.skipDays?.includes(day);
 }

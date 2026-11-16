@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { useApp, type NotificationKind } from "@/store/app";
-import { isDesktop, previewNotification } from "@/platform/desktop";
+import { isDesktop, previewExtra, previewNotification, type PreviewExtra } from "@/platform/desktop";
 import { fmtTime } from "@/lib/time";
 import { playSound } from "@/lib/sounds";
 import { cn } from "@/lib/utils";
@@ -109,6 +109,23 @@ export function DevPanel() {
                   className="rounded-md bg-surface-2 py-1 text-[11px] capitalize hover:text-accent"
                 >
                   {k}
+                </button>
+              ))}
+            </div>
+            <div className="mt-1 grid grid-cols-2 gap-1">
+              {(
+                [
+                  ["followup", "Follow-up"],
+                  ["snooze", "Snooze until"],
+                ] as [PreviewExtra, string][]
+              ).map(([k, label]) => (
+                <button
+                  type="button"
+                  key={k}
+                  onClick={() => (isDesktop ? void previewExtra(k) : s.say("Real toasts only show in the desktop app"))}
+                  className="rounded-md bg-surface-2 py-1 text-[11px] hover:text-accent"
+                >
+                  {label}
                 </button>
               ))}
             </div>

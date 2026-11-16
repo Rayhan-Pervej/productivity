@@ -8,11 +8,13 @@ adapts when plans break, and shows your progress. Product docs live in [docs/](d
 
 ## Status
 
-**v0.1, usable daily.** Full UI, desktop core and database are done:
+**v0.1 is done** and used daily. What's in it:
 
-- **Desktop (Tauri + Rust):** tray, start with Windows, global quick add (Ctrl+Alt+Space), native notifications with actions.
-- **Data (SQLite in Rust):** `%APPDATA%\app.productivity.desktop\productivity.db`, daily backups in `backups\` (14 kept), export to JSON in Settings.
-- **Rust owns the day:** rolls over at midnight and computes reminders from the database, even when no window is open.
+- **Plan:** adaptive timeline (background bands like Office, tracked blocks, steps), plans per weekday, repeats with end dates and per-day exceptions, Inbox / Anytime / Backlog, natural-language quick add (Ctrl+Alt+Space).
+- **Daily moments:** Plan my day each morning (pick up to 3, get free slots) and Close my day each evening, from a notification, the tray menu or Ctrl+K.
+- **Reminders:** native Windows notifications with actions, one follow-up for unanswered blocks, snooze "until what you're in now ends", quiet hours, a custom sound, catch-up after sleep, a banner when Windows blocks notifications.
+- **Desktop (Tauri + Rust):** tray, start with Windows, about 5 MB in the background. Rust owns the day: it rolls over at midnight and computes reminders from the database, even with no window open.
+- **Data (SQLite in Rust):** `%APPDATA%\app.productivity.desktop\productivity.db`, daily backups in `backups\` (2 months kept), JSON export in Settings, past days viewable (read only).
 
 ```bash
 pnpm tauri dev     # desktop app, development
@@ -33,8 +35,9 @@ pnpm dev          # http://localhost:1420
 pnpm typecheck
 ```
 
-The flask button (bottom-left) opens **prototype controls**: simulate the clock, open the
-morning briefing / evening review, and preview the tray popover and Windows notification.
+In dev builds, the flask button (bottom-left) opens **prototype controls**: simulate the clock,
+fire real Windows notifications (including follow-up and snooze), play the sounds, and open Plan my day /
+Close my day. They're never in the installed app.
 
 The first visit runs onboarding; your profile and plans are remembered in the browser.
 

@@ -16,16 +16,20 @@ export function SettingsGroup({ children, className }: { children: ReactNode; cl
 }
 
 /** Label on the left, control on the right, vertically centered. */
-export function SettingRow({ label, children }: { label: ReactNode; children: ReactNode }) {
+/** Label (and an optional one-line hint under it) on the left, control on the right. */
+export function SettingRow({ label, hint, children }: { label: ReactNode; hint?: ReactNode; children: ReactNode }) {
   return (
     <div className="flex min-h-14 items-center justify-between gap-4 px-4 py-2.5 text-[13.5px]">
-      <span>{label}</span>
+      <span className="min-w-0">
+        {label}
+        {hint && <span className="mt-0.5 block text-[12px] text-muted">{hint}</span>}
+      </span>
       {children}
     </div>
   );
 }
 
-export const LEAD_MINUTES = [5, 10, 15] as const;
+const LEAD_MINUTES = [5, 10, 15] as const;
 
 export function LeadMinutesControl({ value, onChange }: { value: number; onChange: (m: number) => void }) {
   return (

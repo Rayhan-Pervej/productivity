@@ -48,14 +48,20 @@ export function SettingsView() {
             onChange={(completionSound) => updateSettings({ completionSound })}
           />
         </SettingRow>
-        <SettingRow label="Close my day (evening review)">
-          <TimeSelect
-            label="Evening review"
-            value={settings.reviewAt}
-            onChange={(reviewAt) => updateSettings({ reviewAt })}
-            from={20 * 60}
-            to={24 * 60}
-          />
+        <SettingRow label="Plan my day" hint="Each morning when quiet hours end: pick what matters and give it time.">
+          <Switch label="Plan my day" checked={settings.planMyDay} onChange={(planMyDay) => updateSettings({ planMyDay })} />
+        </SettingRow>
+        <SettingRow label="Close my day" hint="Each evening: see what you did, and give the rest a home.">
+          <div className="flex items-center gap-3">
+            <TimeSelect
+              label="Close my day at"
+              value={settings.reviewAt}
+              onChange={(reviewAt) => updateSettings({ reviewAt })}
+              from={20 * 60}
+              to={24 * 60}
+            />
+            <Switch label="Close my day" checked={settings.closeMyDay} onChange={(closeMyDay) => updateSettings({ closeMyDay })} />
+          </div>
         </SettingRow>
         <SettingRow label="Quiet hours">
           <div className="flex items-center gap-1.5">

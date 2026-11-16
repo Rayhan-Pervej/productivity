@@ -43,7 +43,9 @@ describe("quick add parser", () => {
   });
 
   it("reads deadlines and habits", () => {
-    expect(parse("submit invoice by fri")).toMatchObject({ type: "deadline", due: "Friday" });
+    expect(parse("submit invoice by fri")).toMatchObject({ type: "deadline", due: "2026-11-13" });
+    expect(parse("send report by tomorrow").due).toBe("2026-11-11");
+    expect(parse("pay rent by tue").due).toBe("2026-11-10"); // today is Tuesday
     expect(parse("read every day 30m")).toMatchObject({ type: "habit", duration: 30 });
   });
 

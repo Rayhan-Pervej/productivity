@@ -1,18 +1,18 @@
-// Morning briefing, evening review and wake-up catch-up: docs/07-ui-ux-design.md §9–10, spec §6.2.
+// Evening review (Close my day) and wake-up catch-up: docs/07-ui-ux-design.md §9–10, spec §6.2.
+// The morning moment is PlanMyDay.tsx.
 import { StepDots } from "@/components/StepDots";
 import { useMemo, useState } from "react";
-import { Check, Coffee, Moon, Sun } from "lucide-react";
+import { Check, Coffee, Moon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useApp } from "@/store/app";
 import { blocksForDay } from "@/lib/days";
 import { dayProgress, missedBlocks, sortByStart, unresolvedBlocks } from "@/lib/day";
 import { fmtTime, todayLabel } from "@/lib/time";
-import { Button, Modal, ProgressRing, SectionLabel } from "@/components/ui";
-import { Select } from "@/components/Select";
+import { Button, Modal, ProgressRing } from "@/components/ui";
 import { TriageCard } from "@/features/today/ContextPanel";
 import type { Block } from "@/domain/types";
 
-function CommitmentList({ blocks }: { blocks: Block[] }) {
+export function CommitmentList({ blocks }: { blocks: Block[] }) {
   const areas = useApp((s) => s.areas);
   return (
     <div className="space-y-0.5">
@@ -20,7 +20,7 @@ function CommitmentList({ blocks }: { blocks: Block[] }) {
         const area = areas.find((a) => a.id === b.areaId);
         return (
           <div key={b.id} className="flex items-center gap-3 rounded-lg px-1 py-1 text-[13.5px]">
-            <span className="tabular w-11 text-[12px] text-muted">{fmtTime(b.start)}</span>
+            <span className="tabular w-16 shrink-0 text-[12px] whitespace-nowrap text-muted">{fmtTime(b.start)}</span>
             <span className="h-4 w-[3px] rounded-full" style={{ background: area?.color }} />
             <span className="truncate font-medium">{b.title}</span>
             <span className="ml-auto text-[12px] text-muted">{area?.name}</span>
@@ -31,73 +31,13 @@ function CommitmentList({ blocks }: { blocks: Block[] }) {
   );
 }
 
-function ContextLine({ blocks }: { blocks: Block[] }) {
+export function ContextLine({ blocks }: { blocks: Block[] }) {
   const ctx = sortByStart(blocks.filter((b) => b.kind === "context"));
   if (!ctx.length) return null;
   return (
     <p className="tabular text-[12.5px] text-muted">
       Around: {ctx.map((b) => `${b.title} ${fmtTime(b.start)}–${fmtTime(b.end)}`).join(" · ")}
     </p>
-  );
-}
-
-export function MorningBriefing() {
-  const isOpen = useApp((s) => s.overlay === "briefing");
-  const close = useApp((s) => s.close);
-  const blocks = useApp((s) => s.blocks);
-  const anytime = useApp((s) => s.anytime);
-  const templates = useApp((s) => s.templates);
-  const activeId = useApp((s) => s.activeTemplateId);
-  const name = useApp((s) => s.settings.name);
-  const { applyTemplate, setView } = useApp.getState();
-  const due = anytime.filter((t) => t.due && !t.done);
-  const commitments = sortByStart(blocks.filter((b) => b.kind === "commitment"));
-
-  return (
-    <Modal open={isOpen} onClose={close} width={460}>
-      <div className="p-7">
-        <Sun size={20} className="text-attention" />
-        <h2 className="mt-2 text-[24px] font-semibold tracking-tight">Good morning{name && `, ${name}`}</h2>
-        <p className="text-[13.5px] text-muted">{todayLabel()}</p>
-
-        <SectionLabel className="mt-6 mb-2">Today you're making time for</SectionLabel>
-        {commitments.length ? (
-          <CommitmentList blocks={commitments} />
-        ) : (
-          <p className="text-[13.5px] text-muted">Nothing planned. A free day.</p>
-        )}
-        <div className="mt-2">
-          <ContextLine blocks={blocks} />
-        </div>
-
-        {due.length > 0 && (
-          <div className="mt-4 space-y-1 rounded-xl bg-bg px-3 py-2.5 text-[13px]">
-            {due.map((t) => (
-              <div key={t.id} className="flex items-center gap-2">
-                <span className="size-1.5 rounded-full bg-attention" /> Due {t.due?.toLowerCase()}: {t.title}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-7 flex items-center gap-2">
-          <Button size="lg" variant="primary" className="flex-1" onClick={close}>
-            Looks good
-          </Button>
-          <Button size="lg" variant="ghost" onClick={() => setView("today")}>
-            Adjust
-          </Button>
-          <Select
-            label="Use a different plan for today"
-            value={activeId}
-            onChange={applyTemplate}
-            size="lg"
-            variant="filled"
-            options={templates.map((t) => ({ value: t.id, label: t.name }))}
-          />
-        </div>
-      </div>
-    </Modal>
   );
 }
 
@@ -190,6 +130,7 @@ function ReviewBody({ onDone }: { onDone: () => void }) {
       <div className="mt-2">
         <ContextLine blocks={tomorrowPlan} />
       </div>
+
       <Button variant="ghost" className="mt-3" onClick={() => open("quickAdd", "tomorrow ")}>
         + Add something
       </Button>
@@ -215,7 +156,7 @@ function ReviewBody({ onDone }: { onDone: () => void }) {
 
       <div className="mt-6 flex justify-end gap-2">
         {step > 0 && (
-          <Button variant="ghost" onClick={() => setStep(step - 1)}>
+          <Button variant="ghost" size="lg" onClick={() => setStep(step - 1)}>
             Back
           </Button>
         )}
@@ -261,7 +202,7 @@ export function CatchUp() {
         </div>
         <div className="mt-6 flex justify-end gap-2">
           {missed.length >= 2 && (
-            <Button variant="ghost" onClick={triageAll}>
+            <Button variant="ghost" size="lg" onClick={triageAll}>
               Move all to backlog
             </Button>
           )}

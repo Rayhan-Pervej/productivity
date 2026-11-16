@@ -21,6 +21,7 @@ pub fn reminders_for_today(conn: &Connection, today: NaiveDate) -> rusqlite::Res
     let quiet_from = settings["quietFrom"].as_f64().unwrap_or(30.0);
     let quiet_to = settings["quietTo"].as_f64().unwrap_or(420.0);
     let twelve_hour = settings["timeFormat"].as_str() != Some("24h");
+    let review_at = settings["reviewAt"].as_f64().unwrap_or(23.0 * 60.0 + 30.0);
 
     let areas: HashMap<String, String> = {
         let mut st = conn.prepare("SELECT id, name FROM areas WHERE deleted_at IS NULL")?;
@@ -81,8 +82,90 @@ pub fn reminders_for_today(conn: &Connection, today: NaiveDate) -> rusqlite::Res
             format!("{owner} block is ending"),
             format!("Is {} done?", b.title),
         );
+        // No answer 10 minutes in: ask once more (the scheduler drops it if you acted on any of its
+        // toasts). Short blocks skip it; their "ending" reminder comes soon anyway.
+        if b.end - b.start > FOLLOW_UP_MIN * 2.0 {
+            add(
+                "followup",
+                b.start + FOLLOW_UP_MIN,
+                format!("Still on {}?", b.title),
+                format!("It started at {}. Done, or skip it?", fmt_time(b.start, twelve_hour)),
+            );
+        }
     }
+
+    // The two daily moments. (Deadlines don't notify: Plan my day shows them each morning.) Unlike block reminders, if their time has passed today
+    // (the PC was off), they come shortly after the app starts, still once a day.
+    let now_min = (now - midnight) as f64 / 60_000.0;
+    let soon = |minute: f64| (midnight + (minute * 60_000.0).round() as i64).max(now + MOMENT_DELAY_MS);
+    let mut moment = |id: String, kind: &str, block_id: String, at: i64, title: String, body: String| {
+        let minute = (at - midnight) as f64 / 60_000.0;
+        if minute >= 24.0 * 60.0 || in_quiet_hours(minute, quiet_from, quiet_to) {
+            return;
+        }
+        out.push(Reminder {
+            id,
+            block_id,
+            kind: kind.into(),
+            title,
+            body,
+            at,
+        });
+    };
+
+    let flag = |key: &str| settings[key].as_bool().unwrap_or(true);
+    let last = |key: &str| settings[key].as_str().unwrap_or("").to_string();
+    // Plan my day: when quiet hours end, unless the evening has already come.
+    if flag("planMyDay") && last("lastMorning") != today_key && now_min < review_at {
+        moment(
+            format!("plan:{today_key}"),
+            "plan",
+            String::new(),
+            soon(quiet_to),
+            "Plan your day".into(),
+            "Pick what matters today and give it time. It takes a minute.".into(),
+        );
+    }
+    // Close my day: at the review time.
+    if flag("closeMyDay") && last("lastEvening") != today_key {
+        moment(
+            format!("review:{today_key}"),
+            "review",
+            String::new(),
+            soon(review_at),
+            "Close your day".into(),
+            "See what you did, give the rest a home, and peek at tomorrow.".into(),
+        );
+    }
+
     Ok(out)
+}
+
+/// A tracked block that isn't answered this many minutes after it starts gets one follow-up.
+const FOLLOW_UP_MIN: f64 = 10.0;
+/// A daily moment whose time has passed comes this long after the app starts (or the plan changes).
+const MOMENT_DELAY_MS: i64 = 30_000;
+
+/// When whatever you're in right now ends (another tracked block running at `now_min`), for
+/// "Snooze until 11:30 AM". None when you're not in anything else.
+pub fn busy_until(conn: &Connection, today: NaiveDate, except_block: &str, now_min: f64) -> Option<f64> {
+    load_blocks(conn, "day = ?1", &day_key(today))
+        .ok()?
+        .into_iter()
+        .filter(|b| b.kind == "commitment" && b.status == "planned" && b.id != except_block)
+        .filter(|b| b.start <= now_min && now_min < b.end)
+        .map(|b| b.end)
+        .reduce(f64::min)
+}
+
+/// The clock format chosen in Settings (12-hour unless "24h").
+pub fn twelve_hour(conn: &Connection) -> bool {
+    meta_get(conn, "settings")
+        .ok()
+        .flatten()
+        .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+        .map(|v| v["timeFormat"].as_str() != Some("24h"))
+        .unwrap_or(true)
 }
 
 /// The reminder sound chosen in Settings: "default" (Windows), "none", or one of ours (e.g. "marimba").

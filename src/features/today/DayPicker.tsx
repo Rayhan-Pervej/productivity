@@ -10,7 +10,7 @@ import { IconButton } from "@/components/IconButton";
 const offsetOf = (d: Date) => daysBetween(new Date(), d);
 const WEEK = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 /** How far back history can be viewed (read only). */
-export const HISTORY_DAYS = 60;
+const HISTORY_DAYS = 60;
 
 /** Calendar button + month popover. Days with things you added show their area colors as dots. */
 export function DayPicker({ selected, onPick }: { selected: number; onPick: (offset: number) => void }) {

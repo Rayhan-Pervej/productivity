@@ -90,8 +90,11 @@ Three zones: **navigation → day → context.**
 | **Context panel** (320 px) | NOW card · NEXT · Anytime today · Didn't happen (collapsed) | The "answer" column. Readable at a glance. |
 
 ### Responsive behavior
-- **< 1000 px wide:** context panel collapses under the header as a compact NOW bar.
-- **< 820 px:** navigation rail becomes icon-only.
+- **≥ 1250 px wide:** the Now panel sits beside the timeline.
+- **< 1250 px:** it folds into the **Now strip** above the timeline (now · next · waiting counts); click to unfold it over the timeline.
+- **< 900 px:** navigation rail becomes icon-only.
+- Blocks and the toolbar adapt to their own width (container queries): a narrow block shows its start time only.
+- Minimum window: 720 × 520.
 - Remembers size & position per monitor.
 
 ### Timeline block design
@@ -204,29 +207,24 @@ Short, scannable, max 3 buttons.
 
 ---
 
-## 9. Morning briefing
+## 9. Plan my day (morning)
+
+Opens once a day after quiet hours end (by itself, by notification, or from the tray). Three short steps:
 
 ```
-╭──────────────────────────────────────────╮
-│                                          │
-│   Good morning ☀                         │
-│   Tuesday, 10 November                   │
-│                                          │
-│   Your day · Workday plan                │
-│   ▌ 09:00  Office                        │
-│   ▌ 18:00  Personal                      │
-│   ▌ 21:00  Client · Fix login bug        │
-│   ▌ 22:00  Study · DSA graphs            │
-│   ▌ 23:00  Reading                       │
-│                                          │
-│   ⏳ Due today: Send invoice              │
-│   ↻ From yesterday: Read 1 article        │
-│                                          │
-│   [  Looks good  ]    Adjust    Holiday ▾ │
-╰──────────────────────────────────────────╯
+1  Good morning ☀            Workday      2  What matters today?             3  Give them time
+   Already on your day                       [ something on your mind… ][Add]   ① Fix Focusly    9:00 AM ▾  1h ▾
+   8:30 AM ▌ Standup     Office              ① Fix Focusly edge case  Anytime   ② Submit invoice 5:30 PM ▾ 30m ▾
+   9:00 PM ▌ Ielts       Study               ② Submit invoice   due Thu         Ends by 6:00 PM.
+   Around: Office 8:00 AM–5:30 PM            ○ Call the bank          Inbox
+   ● Due Thursday: Submit invoice            ○ Read ch. 3            Backlog
+          [Looks good]  [Plan my day →]          [Give them time →]            [✓ Put them on my day]
 ```
 
-- One primary button. Should take ~10 seconds.
+- **Up to 3 picks.** If only these get done, it was a good day.
+- Slots are suggested in order: a task can sit inside a band of its own area (an Office task inside Office), never inside another's.
+- The plan label ("Workday") is information only; plans are changed in Plans.
+- All picks go on the timeline at once, with one undo.
 
 ## 10. Evening review: "Close your day"
 
@@ -270,20 +268,22 @@ Three short steps, progress dots at top. Target: under 60 seconds.
 
 ### Color
 
-Neutral, warm-leaning base with **one accent**. Area colors are muted so the timeline never looks like a rainbow.
+Neutral base (light: Tailwind's zinc grays) with **one accent**. Area colors are muted so the timeline never looks like a rainbow. Source of truth: `src/styles/globals.css`.
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `bg` | #F7F7F5 | #141416 | Window background (under Mica) |
+| `bg` | #F4F4F5 | #141416 | Window background |
 | `surface` | #FFFFFF | #1C1C1F | Cards, panels |
-| `surface-2` | #F0F0EE | #232327 | Hover, inputs |
-| `border` | #E6E6E3 | #2C2C31 | Hairlines |
-| `text` | #1A1A1C | #EDEDEF | Primary text |
-| `text-muted` | #6B6B70 | #9A9AA2 | Secondary text |
+| `surface-2` | #E9E9EC | #232327 | Hover, inputs, chips |
+| `border` | #DCDCE0 | #2C2C31 | Hairlines |
+| `text` | #18181B | #EDEDEF | Primary text |
+| `text-muted` | #52525B | #A9A9B3 | Secondary text |
 | `accent` | #5B5BD6 | #8B8BF5 | Primary actions, now line, focus |
-| `success` | #2F9E6E | #4CC38A | Done states |
-| `attention` | #C98A1B | #E0A84A | "Needs attention" (never red) |
-| `danger` | #D14D4D | #F07171 | Destructive actions only (delete), and only on hover: never for missed tasks |
+| `success` | #047857 | #4CC38A | Done states |
+| `attention` | #B45309 | #E0A84A | "Needs attention" (never red) |
+| `danger` | #B91C1C | #F07171 | Destructive actions only (delete), and only on hover: never for missed tasks |
+
+Area colors are vivid for bars, dots and tints. Used **as text** they go through `ink()` (mixed 40% toward the text color), so they pass contrast in both themes.
 
 **Area palette** (muted, distinguishable in both themes; user can change):
 

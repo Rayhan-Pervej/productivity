@@ -3,7 +3,7 @@
 > Working name. A lightweight, always-running desktop app that plans your day with you,
 > tells you what to do *now*, adapts when life happens, and shows you how you're doing.
 
-**Status:** Planning · **Current target:** v0.1 (personal MVP) · **Last updated:** 2026-11-10
+**Status:** v0.1.0 released (2026-11-16) · **Next:** v0.2 (smart & adaptive) · **Last updated:** 2026-11-16
 
 ## Documents
 

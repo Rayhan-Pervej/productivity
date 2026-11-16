@@ -53,7 +53,7 @@ Legend: `0.1` personal MVP · `0.2` · `0.3` · `1.0` product · `later` unsched
 | ID | Feature | Problem it solves | Ver |
 |---|---|---|---|
 | R1 | **End-of-day review** (~60 sec): done vs planned, triage leftovers, peek at tomorrow | Day never "closes"; tomorrow starts unplanned | 0.1 |
-| R2 | **Morning briefing** on first PC start: "Here's your day" + quick adjust | Day starts without intention | 0.1 |
+| R2 | **Plan my day** each morning: see your day, pick up to 3 things that matter, get free slots for them (first called "Morning briefing") | Day starts without intention; "what should I even add?" | 0.1 |
 | R3 | **Streaks with forgiveness** (1 free miss/week) | Strict streaks break → users quit | 0.2 |
 | R4 | **Weekly review**: planned vs actual, hours per area, wins/misses | No feedback loop | 0.3 |
 | R5 | **Insights**: "You skip study on Thursdays", "Best focus: 9–11 PM" | Data without meaning | 0.3 |

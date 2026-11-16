@@ -11,7 +11,7 @@ Feature IDs refer to the [Feature Catalog](02-feature-catalog.md).
 | Plan | P1 Templates · P2 Task types · P3 Areas · P4 Duration/priority/energy · P5 Recurrence · P6 Inbox · P7 Subtasks/notes · P8 Overlap warning |
 | Do | D1 Today view · D2 Now view · D3 Quick-add hotkey · D4 Actionable notifications · D5 Tray · D6 Command palette · D7 "What should I do?" (simple rules: moved up, see D-012) |
 | Adapt | A1 Missed-task triage · A2 Wake-up catch-up |
-| Reflect | R1 End-of-day review · R2 Morning briefing |
+| Reflect | R1 End-of-day review (Close my day) · R2 Plan my day |
 | Notifications | N1 Start/end reminders · N2 Escalation · N3 Quiet hours/Focus Assist · N4 Smart snooze |
 | Quality | Q1 Autostart · Q2 Local-first · Q3 Autosave/undo · Q4 Sleep/TZ/DST · Q5 Low resources · Q6 Onboarding · Q7 Themes/DPI |
 

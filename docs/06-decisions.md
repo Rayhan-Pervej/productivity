@@ -21,8 +21,18 @@
 | D-015 | 2026-11-11 | SQLite via **rusqlite** (bundled), not sqlx | Local single-user database: synchronous calls are simpler and faster to build; sqlx's async and compile-time checks add little here |
 | D-016 | 2026-11-11 | Rust owns the data and the day; the UI keeps its logic and saves a snapshot after each change, which Rust writes into normalized tables (only changed rows are touched) | Real database now without rewriting all UI logic; Rust rolls the day over and computes reminders from the database, so no hidden window is needed at login or midnight |
 | D-017 | 2026-11-11 | Blocks stored by real date (`day`), soft delete everywhere, append-only `activity` log | Sync-ready and keeps history for the future weekly review and insights |
-| D-019 | 2026-11-11 | Name: **Wholeday**. Single source of truth: `productName` in tauri.conf.json (UI gets it at build time); internal identifier unchanged | Easy to rename later without losing data or Windows registrations |
 | D-018 | 2026-11-11 | Daily automatic backup (`VACUUM INTO`, last 14 kept) and JSON export in Settings | Never lose data; never be locked in |
+| D-019 | 2026-11-11 | Name: **Wholeday**. Single source of truth: `productName` in tauri.conf.json (UI gets it at build time); internal identifier unchanged | Easy to rename later without losing data or Windows registrations |
+| D-020 | 2026-11-16 | Timeline: no drag to move or resize; times are edited in a block's details | Dragging caused accidental time changes |
+| D-021 | 2026-11-16 | Timeline layout never depends on the clock. It covers your waking day (from quiet hours); empty time follows one curve that is always shorter than tracked time of the same length, with readable room next to blocks | Nothing moves as time passes; proportions stay honest ("longer is taller") |
+| D-022 | 2026-11-16 | Backups: last **2 months** kept (replaces "14" in D-018); past days viewable read-only | Still tiny; a longer safety net to match the history view |
+| D-023 | 2026-11-16 | Daily moments: **Plan my day** (replaces the morning briefing) and **Close my day**, each once a day: by itself if the window is open, by notification, or from the tray | Fixes "what should I add?": start from what matters, then give it time |
+| D-024 | 2026-11-16 | Deadlines (`by fri`) are saved as dates and shown in Plan my day only; no deadline notifications | Seen every morning already; extra notifications were noise |
+| D-025 | 2026-11-16 | Reminders: one follow-up 10 min after a block starts if unanswered (any action cancels it); snooze 10 min or "until the block you're in ends" | Gentle escalation that never nags |
+| D-026 | 2026-11-16 | Reminder sound: the toast is silent and the app plays its own sound (one marimba sound); skipped in full-screen apps | Windows doesn't let unpackaged apps attach custom sounds to toasts |
+| D-027 | 2026-11-16 | Light theme on Tailwind's zinc grays; every text color at least 4.5:1; area colors used as text are mixed toward the text color | Light mode looked washed out |
+| D-028 | 2026-11-16 | Biome for lint + format (not ESLint/Prettier); rustfmt + clippy for Rust; `pnpm check` / `pnpm check:rust` before commits; SemVer + annotated tags for releases | ESLint's TypeScript plugin may not support TypeScript 7; one fast tool; releases reproducible from tags |
+| D-029 | 2026-11-16 | Dev builds and the installed app share one identity and database (run one at a time) | Simplest setup for a single user; revisit if it gets in the way |
 
 ## Tech stack: **chosen (D-007)**, background-process footprint to be verified by a measurement spike
 
@@ -47,4 +57,4 @@ Note: on Windows the UI uses WebView2 (Chromium-based); lightness depends on unl
 | Q-2 | Will a phone companion app be needed (check plan while outside)? | Stack choice, sync priority | Open |
 | Q-3 | Is cross-device sync needed before v1.0? | Data layer, backend | Open |
 | Q-4 | AI planner wanted eventually? Which provider / local vs cloud? | Backend, privacy | Open |
-| Q-5 | Product name | Branding, app ID, installer | Open |
+| Q-5 | Product name | Branding, app ID, installer | Resolved for now: **Wholeday** (D-019). Revisit before a public launch |

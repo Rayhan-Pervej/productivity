@@ -77,7 +77,11 @@ export async function previewNotification(kind: "upcoming" | "starting" | "endin
     : kind === "missed" ? tracked.filter((b) => b.end <= s.now).sort((a, b) => a.start - b.start)[0]
     : current;
   if (!target) {
-    s.say(`No block fits a "${kind}" notification at ${fmtTime(s.now)}. Move the prototype clock.`);
+    // Nothing fits at this time: show the toast with a sample, so the look and sound can still be checked.
+    const sample = { upcoming: ["Sample block", `Starts in ${s.settings.leadMinutes} min`], starting: ["Time for focus", "Sample block"], ending: ["Your block is ending", "Is Sample block done?"], missed: ["Sample block didn't happen", "Want to find it a new spot?"] }[kind];
+    await invoke("preview_notification", {
+      reminder: { id: `preview:${kind}:${Date.now()}`, blockId: "", kind, title: sample[0], body: sample[1], at: Date.now() },
+    });
     return;
   }
   const area = s.areas.find((a) => a.id === target.areaId)?.name ?? "";

@@ -3,11 +3,12 @@
 // native toasts; here they let us design and review them in the browser.
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { CalendarDays, Check, Coffee, FlaskConical, Moon, MousePointer2, Plus, RotateCcw, Sun, Sunrise, X } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Coffee, FlaskConical, Moon, MousePointer2, Plus, RotateCcw, Sun, Sunrise, Volume2, X } from "lucide-react";
 import { useApp, useCurrent, type NotificationKind } from "@/store/app";
 import { isDesktop, previewNotification } from "@/platform/desktop";
 import { dayProgress, missedBlocks, nextCommitment } from "@/lib/day";
 import { fmtTime } from "@/lib/time";
+import { playSound } from "@/lib/sounds";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/config";
 import { AreaDot, Button, Kbd, ProgressRing, useArea } from "@/components/ui";
@@ -249,14 +250,17 @@ export function DevPanel() {
   const now = useApp((s) => s.now);
   const simulated = useApp((s) => s.simulated);
   const theme = useApp((s) => s.theme);
+  const blocks = useApp((s) => s.blocks);
+  const settings = useApp((s) => s.settings);
   const s = useApp.getState();
-  const presets: [string, number][] = [
-    ["Morning", 7 * 60 + 30],
-    ["At office", 11 * 60],
-    ["Free", 20 * 60 + 40],
-    ["Client", 21 * 60 + 25],
-    ["Late", 23 * 60 + 50],
-  ];
+
+  // Jump through your real day: every start and end of today's blocks.
+  const stops = useMemo(() => [...new Set(blocks.flatMap((b) => [b.start, b.end]))].sort((a, b) => a - b), [blocks]);
+  const minute = Math.floor(now);
+  const prev = [...stops].reverse().find((m) => m < minute);
+  const next = stops.find((m) => m > minute);
+  const at = blocks.filter((b) => b.start <= now && now < b.end).sort((a, b) => (a.kind === "commitment" ? -1 : 1) - (b.kind === "commitment" ? -1 : 1))[0];
+  const chip = "rounded bg-surface-2 px-1.5 py-0.5 text-[11px] hover:text-accent disabled:opacity-40 disabled:hover:text-inherit";
 
   return (
     <div className="fixed bottom-4 left-[88px] z-[55] max-[900px]:left-[68px]">
@@ -266,26 +270,32 @@ export function DevPanel() {
             <div className="text-[12px] font-semibold">Prototype controls</div>
             <label className="mt-3 block text-[12px] text-muted">
               Clock · <span className="tabular text-text">{fmtTime(now)}</span> {simulated ? "(simulated)" : "(live)"}
+              <span className="block truncate">{at ? `In: ${at.title}` : "Between blocks"}</span>
             </label>
             <input
               type="range"
-              min={6 * 60}
-              max={24 * 60 - 1}
+              min={0}
+              max={24 * 60}
               step={5}
               value={Math.floor(now)}
               onChange={(e) => s.simulate(Number(e.target.value))}
               className="mt-1 w-full accent-[var(--accent)]"
             />
             <div className="mt-1 flex flex-wrap gap-1">
-              {presets.map(([label, m]) => (
-                <button key={label} onClick={() => s.simulate(m)} className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] hover:text-accent">
-                  {label}
-                </button>
-              ))}
-              <button onClick={() => s.simulate(null)} className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] hover:text-accent">
+              <button disabled={prev === undefined} onClick={() => prev !== undefined && s.simulate(prev)} className={cn(chip, "flex items-center")} title="Previous start or end of a block">
+                <ChevronLeft size={12} /> {prev !== undefined ? fmtTime(prev) : "Prev"}
+              </button>
+              <button disabled={next === undefined} onClick={() => next !== undefined && s.simulate(next)} className={cn(chip, "flex items-center")} title="Next start or end of a block">
+                {next !== undefined ? fmtTime(next) : "Next"} <ChevronRight size={12} />
+              </button>
+              <button onClick={() => s.simulate((settings.quietFrom + 60) % (24 * 60))} className={chip} title="One hour into your quiet hours">
+                Quiet hours
+              </button>
+              <button onClick={() => s.simulate(null)} className={chip}>
                 Live
               </button>
             </div>
+            <p className="mt-1.5 text-[10.5px] text-muted">Changes what the app shows. Real reminders still follow the real clock.</p>
 
             <div className="mt-4 text-[11px] font-semibold tracking-wider text-muted uppercase">
               Windows notification {isDesktop && <span className="font-normal tracking-normal normal-case">· real toast</span>}
@@ -298,13 +308,19 @@ export function DevPanel() {
               ))}
             </div>
 
+            <div className="mt-4 text-[11px] font-semibold tracking-wider text-muted uppercase">Sounds</div>
+            <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+              <Button size="sm" onClick={() => playSound(settings.notificationSound)}><Volume2 size={13} /> Reminder</Button>
+              <Button size="sm" onClick={() => playSound("done")}><Check size={13} /> Done</Button>
+            </div>
+
             <div className="mt-4 text-[11px] font-semibold tracking-wider text-muted uppercase">Moments</div>
             <div className="mt-1.5 grid grid-cols-2 gap-1.5">
               <Button size="sm" onClick={() => s.open("briefing")}><Sunrise size={13} /> Morning</Button>
               <Button size="sm" onClick={() => s.open("review")}><Moon size={13} /> Evening review</Button>
               <Button size="sm" onClick={() => s.open("catchup")}><Coffee size={13} /> Wake from sleep</Button>
               {!isDesktop && <Button size="sm" onClick={() => s.open("tray")}><MousePointer2 size={13} /> Tray</Button>}
-              <Button size="sm" onClick={s.restartOnboarding}><RotateCcw size={13} /> First run</Button>
+              <Button size="sm" onClick={s.restartOnboarding} title="Runs setup again. Keeps your data."><RotateCcw size={13} /> Setup again</Button>
               <Button size="sm" onClick={() => s.setTheme(theme === "dark" ? "light" : "dark")}>
                 {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />} Theme
               </Button>

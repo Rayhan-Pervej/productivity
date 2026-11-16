@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { Check, Clock, Play, Plus, Repeat, RotateCcw, SkipForward, Trash2 } from "lucide-react";
 import { useApp } from "@/store/app";
+import { dayWindow, gapHeight, gapPosition, trackedHeight } from "@/lib/scale";
 import type { Block } from "@/domain/types";
 import { dayPhrase, fmtDuration, fmtTime } from "@/lib/time";
 import { cn, tint } from "@/lib/utils";
@@ -16,12 +17,13 @@ import { bandMenu, blockMenu } from "@/features/menus";
  *  - background (context) blocks are compressed to a calm band
  *  - upcoming free gaps stay visible and plannable; past gaps shrink away
  */
-const PX_PER_MIN = 72 / 60;
 type SegKind = "commitment" | "context" | "free";
 interface Seg {
   from: number;
   to: number;
   y: number;
+  /** Offset (px) of a minute inside this segment, when not linear (empty time, see gapPosition). */
+  place?: (minute: number) => number;
   px: number;
   kind: SegKind;
 }
@@ -45,75 +47,118 @@ const NEST_INSET_NARROW = 116;
 /** Timeline width (px) below which it counts as narrow. Matches the `@max-[560px]` query below. */
 const NARROW_TIMELINE = 560;
 
-/**
- * Height for tracked time: the first hour at full scale (72 px), longer stretches grow more slowly,
- * so a 4-hour block doesn't become a tall empty card. Steps still get their room (see neededHeight).
- */
-function trackedHeight(minutes: number) {
-  const full = Math.min(minutes, 60) * PX_PER_MIN;
-  return full + Math.max(0, minutes - 60) * 0.45;
-}
+/** Minimum vertical space between two time labels. */
+const LABEL_GAP = 18;
+/** A background band with no tasks on it is one row: room for its name and time. */
+const BAND_ROW = 44;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-function buildScale(blocks: Block[], now: number, readOnly: boolean) {
-  const firstStart = Math.min(...blocks.map((b) => b.start), readOnly ? 24 * 60 : now);
-  const lastEnd = Math.max(...blocks.map((b) => b.end), readOnly ? 0 : now);
+/**
+ * The scale for one day. Its range is your waking day (from quiet hours), widened only for blocks
+ * outside it. It never depends on the clock, so nothing moves or resizes as time passes.
+ */
+function buildScale(blocks: Block[], day: { start: number; end: number }) {
+  const firstStart = Math.min(day.start, ...blocks.map((b) => b.start));
+  const lastEnd = Math.max(day.end, ...blocks.map((b) => b.end));
   const start = Math.max(0, Math.floor(firstStart / 60) * 60);
-  const end = Math.min(24 * 60, Math.ceil((lastEnd + 30) / 60) * 60);
+  const end = Math.min(24 * 60, Math.ceil(lastEnd / 60) * 60);
 
   const points = new Set([start, end]);
   for (const b of blocks) {
     points.add(clamp(b.start, start, end));
     points.add(clamp(b.end, start, end));
   }
-  // Split compressed stretches (background bands, free gaps) at "now", so the time left in them
-  // keeps its own room instead of being squeezed toward the edge. Tracked blocks are never split:
-  // their height must not change as the clock moves.
-  if (!readOnly && now > start && now < end && !blocks.some((b) => b.kind === "commitment" && b.start < now && b.end > now)) {
-    points.add(Math.floor(now));
-  }
+  // The layout never depends on the clock: time passing must not move or resize anything.
   const sorted = [...points].sort((a, b) => a - b);
 
-  const segs: Seg[] = [];
-  let y = 0;
+  // Background bands with tasks on them (e.g. Office): their empty stretches are just gaps between tasks.
+  const hosts = new Set(
+    blocks
+      .filter((c) => c.kind === "context" && blocks.some((b) => b.kind === "commitment" && b.start < c.end && c.start < b.end))
+      .map((c) => c.id),
+  );
+
+  // 1. Cut the day into segments and classify them.
+  type Raw = { from: number; to: number; kind: SegKind; covering: Block[]; key: string };
+  const raw: Raw[] = [];
   for (let i = 0; i < sorted.length - 1; i++) {
     const from = sorted[i];
     const to = sorted[i + 1];
     if (to <= from) continue;
     const covering = blocks.filter((b) => b.start < to && b.end > from);
-    const kind: SegKind = covering.some((b) => b.kind === "commitment")
-      ? "commitment"
-      : covering.length
-        ? "context"
-        : "free";
-    const dur = to - from;
-    const past = !readOnly && to <= now;
-    const px =
-      kind === "commitment"
-        ? Math.max(
-            30,
-            trackedHeight(dur),
-            // A block with steps gets room to show them, however short it is.
-            // Its extra height is shared across its segments in proportion to time.
-            ...covering.map((b) => (neededHeight(b) * dur) / (b.end - b.start)),
-          )
-        : kind === "context"
-          ? clamp(dur * 0.12, 44, 64)
-          : past
-            ? clamp(dur * 0.2, 10, 24)
-            : clamp(dur * 0.8, 30, 96);
-    segs.push({ from, to, y, px, kind });
-    y += px;
+    const kind: SegKind = covering.some((b) => b.kind === "commitment") ? "commitment" : covering.length ? "context" : "free";
+    raw.push({ from, to, kind, covering, key: `${kind}:${covering.map((b) => b.id).join(",")}` });
   }
+
+  // 2. Height of each segment.
+  const place: (((m: number) => number) | undefined)[] = raw.map(() => undefined);
+  const px: number[] = raw.map((s) => {
+    if (s.kind !== "commitment") return 0; // empty time: by stretch, below
+    const dur = s.to - s.from;
+    return Math.max(
+      30,
+      trackedHeight(dur),
+      // A block with steps gets room to show them, however short it is.
+      // Its extra height is shared across its segments in proportion to time.
+      ...s.covering.map((b) => (neededHeight(b) * dur) / (b.end - b.start)),
+    );
+  });
+
+  // Empty time goes by whole stretches (consecutive segments of the same kind under the same bands):
+  // the curve gives the stretch its height, shared by its segments in proportion to their minutes.
+  // That way a stretch cut into pieces (by a band's edge, say) keeps the height its whole length deserves.
+  for (let i = 0; i < raw.length; ) {
+    if (raw[i].kind === "commitment") {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j + 1 < raw.length && raw[j + 1].key === raw[i].key) j++;
+    const total = raw[j].to - raw[i].from;
+    const standaloneBand = raw[i].kind === "context" && !raw[i].covering.some((b) => hosts.has(b.id));
+    // A band on its own is one row with its label, so it never gets shorter than the label needs.
+    const height = standaloneBand ? Math.max(BAND_ROW, gapHeight(total)) : gapHeight(total);
+    // Within the stretch, its ends keep readable room and the middle is compressed (gapPosition).
+    const origin = raw[i].from;
+    const at = (m: number) => gapPosition(m - origin, total, height);
+    for (let k = i; k <= j; k++) {
+      const top = at(raw[k].from);
+      px[k] = at(raw[k].to) - top;
+      place[k] = (m) => at(m) - top;
+    }
+    i = j + 1;
+  }
+
+  const segs: Seg[] = [];
+  let y = 0;
+  raw.forEach((s, i) => {
+    segs.push({ from: s.from, to: s.to, y, px: px[i], kind: s.kind, place: place[i] });
+    y += px[i];
+  });
 
   const map = (m: number) => {
     if (!segs.length || m <= segs[0].from) return 0;
-    for (const s of segs) if (m <= s.to) return s.y + ((m - s.from) / (s.to - s.from)) * s.px;
+    for (const s of segs) {
+      if (m > s.to) continue;
+      return s.y + (s.place ? s.place(m) : ((m - s.from) / (s.to - s.from)) * s.px);
+    }
     return y;
   };
   const unmap = (py: number) => {
-    for (const s of segs) if (py <= s.y + s.px) return s.from + ((py - s.y) / s.px) * (s.to - s.from);
+    for (const s of segs) {
+      if (py > s.y + s.px) continue;
+      if (!s.place) return s.from + ((py - s.y) / s.px) * (s.to - s.from);
+      // Not linear: find the minute by bisection (positions only move forward).
+      let lo = s.from;
+      let hi = s.to;
+      for (let n = 0; n < 24; n++) {
+        const mid = (lo + hi) / 2;
+        if (s.y + s.place(mid) < py) lo = mid;
+        else hi = mid;
+      }
+      return (lo + hi) / 2;
+    }
     return end;
   };
   return { segs, map, unmap, height: y, start, end };
@@ -130,8 +175,9 @@ export function Timeline({
   const scroller = useRef<HTMLDivElement>(null);
   const sorted = useMemo(() => sortByStart(blocks), [blocks]);
   // Rebuild the scale each minute (not each second) so the layout stays still.
-  const minute = Math.floor(now);
-  const scale = useMemo(() => buildScale(sorted, minute, readOnly), [sorted, minute, readOnly]);
+  const quietFrom = useApp((s) => s.settings.quietFrom);
+  const quietTo = useApp((s) => s.settings.quietTo);
+  const scale = useMemo(() => buildScale(sorted, dayWindow(quietFrom, quietTo)), [sorted, quietFrom, quietTo]);
   const lanes = useMemo(() => assignLanes(sorted), [sorted]);
   const nesting = useMemo(() => {
     const contexts = sorted.filter((b) => b.kind === "context");
@@ -172,16 +218,28 @@ export function Timeline({
     return () => observer.disconnect();
   }, [readOnly]);
 
-  // Time labels at segment boundaries, skipping ones that would collide.
+  // Time labels at segment boundaries. When two would collide, the one where a tracked block
+  // starts wins (you read a block by its start), then a band's start, then anything else.
+  const priority = (m: number) =>
+    sorted.some((b) => b.kind === "commitment" && b.start === m) ? 2 : sorted.some((b) => b.start === m) ? 1 : 0;
   const labels: { m: number; y: number }[] = [];
   for (const s of scale.segs) {
-    if (!labels.length || s.y - labels[labels.length - 1].y >= 18) labels.push({ m: s.from, y: s.y });
+    const last = labels[labels.length - 1];
+    if (!last || s.y - last.y >= LABEL_GAP) labels.push({ m: s.from, y: s.y });
+    else if (priority(s.from) > priority(last.m) && s.y - (labels[labels.length - 2]?.y ?? -Infinity) >= LABEL_GAP) {
+      labels[labels.length - 1] = { m: s.from, y: s.y };
+    }
   }
-  if (scale.height - (labels[labels.length - 1]?.y ?? 0) >= 18) labels.push({ m: scale.end, y: scale.height });
+  if (scale.height - (labels[labels.length - 1]?.y ?? 0) >= LABEL_GAP) labels.push({ m: scale.end, y: scale.height });
+
+  /** Where bands with tasks on them sit, to draw row lines across them. */
+  const bandRanges = sorted
+    .filter((b) => nesting.hosts.has(b.id))
+    .map((b) => ({ top: scale.map(b.start), bottom: scale.map(b.end) }));
 
   const showNow = !readOnly && now >= scale.start && now <= scale.end;
   const nowY = scale.map(now);
-  const visibleLabels = showNow ? labels.filter((l) => Math.abs(l.y - nowY) >= 16) : labels;
+  const visibleLabels = showNow ? labels.filter((l) => Math.abs(l.y - nowY) >= 22) : labels;
 
   return (
     <div ref={scroller} className="relative h-full overflow-y-auto px-6 pt-5 pb-28">
@@ -196,6 +254,17 @@ export function Timeline({
         <div className="@container absolute top-0 right-0 bottom-0 left-14 z-10" inert={history}>
           {/* --nest: width of a background band's label column (tasks float to its right). */}
           <div className="absolute inset-0 [--nest:148px] @max-[560px]:[--nest:116px]">
+            {/* Row lines across the task area of bands that hold tasks (the band would hide them),
+                between the band (z-0) and its tasks (z-2). Not over the band's own label column. */}
+            {visibleLabels
+              .filter((l) => bandRanges.some((r) => l.y > r.top && l.y < r.bottom))
+              .map((l) => (
+                <div
+                  key={`band-line-${l.m}`}
+                  className="pointer-events-none absolute right-0 z-[1] h-px bg-border/70"
+                  style={{ top: l.y, left: "calc(8px + var(--nest))" }}
+                />
+              ))}
           {scale.segs
             .filter((s) => !history && s.kind === "free" && (readOnly || s.to > now) && !(s.to === scale.end && s.to - s.from <= 60))
             .map((s) => {
@@ -241,7 +310,8 @@ export function Timeline({
         </div>
 
         {showNow && (
-          <div className="pointer-events-none absolute right-0 left-0 flex items-center" style={{ top: nowY }}>
+          // Centered on nowY: the line (in the middle of the pill's row) sits exactly at the current time.
+          <div className="pointer-events-none absolute right-0 left-0 flex -translate-y-1/2 items-center" style={{ top: nowY }}>
             <span className="tabular relative z-20 -ml-1 w-[60px] -translate-y-px rounded-md bg-accent py-0.5 text-center text-[10.5px] font-semibold text-accent-fg">
               {fmtTime(now)}
             </span>
@@ -306,7 +376,9 @@ function TimelineBlock({
   const target = (): Block | undefined =>
     deletable ? block : repeatPreview ? useApp.getState().ensureRoutineCopy(block.routineId!, dayOffset) : undefined;
   const color = area?.color ?? "#888";
-  const height = Math.max(24, rawHeight - 3);
+  // Sits exactly between its time lines: from just below its start line to its end line,
+  // so two touching blocks share one line (block top = map(start) + 1, see `top` below).
+  const height = Math.max(24, rawHeight - 1);
   const compact = height < 48;
 
   const active = now >= 0 && block.start <= now && now < block.end;
@@ -375,7 +447,7 @@ function TimelineBlock({
       }}
       title={editable ? "Open details · edit, add steps" : "From your plan. Edit it in Plans."}
       className={cn(
-        "@container group absolute z-[1] overflow-hidden rounded-xl transition-all duration-200",
+        "@container group absolute z-[2] overflow-hidden rounded-xl transition-all duration-200",
         editable ? "cursor-pointer hover:-translate-y-px hover:shadow-soft" : "cursor-default",
         celebrate && "animate-[done-pop_650ms_ease-out]",
         active && "z-10 shadow-soft ring-2",

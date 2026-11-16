@@ -1,0 +1,7 @@
+# One line ending everywhere (the formatters write LF), so files never flip between LF and CRLF.
+* text=auto eol=lf
+# Binary assets
+*.png binary
+*.ico binary
+*.icns binary
+*.wav binary

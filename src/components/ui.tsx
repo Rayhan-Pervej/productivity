@@ -20,21 +20,20 @@ const SIZES: Record<Size, string> = {
   lg: "h-10 px-4 text-sm gap-2 rounded-lg",
 };
 
-export const Button = forwardRef<
-  HTMLButtonElement,
-  ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: Size }
->(({ variant = "secondary", size = "md", className, ...props }, ref) => (
-  <button
-    ref={ref}
-    className={cn(
-      "inline-flex shrink-0 items-center justify-center font-medium whitespace-nowrap transition-all duration-150 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40",
-      VARIANTS[variant],
-      SIZES[size],
-      className,
-    )}
-    {...props}
-  />
-));
+export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: Size }>(
+  ({ variant = "secondary", size = "md", className, ...props }, ref) => (
+    <button
+      ref={ref}
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center font-medium whitespace-nowrap transition-all duration-150 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40",
+        VARIANTS[variant],
+        SIZES[size],
+        className,
+      )}
+      {...props}
+    />
+  ),
+);
 Button.displayName = "Button";
 
 export function Kbd({ children, className }: { children: ReactNode; className?: string }) {
@@ -77,7 +76,7 @@ export function ProgressRing({
   const v = Math.min(1, Math.max(0, value));
   return (
     <div className="relative inline-grid place-items-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
+      <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--surface-2)" strokeWidth={stroke} />
         <circle
           cx={size / 2}
@@ -143,9 +142,7 @@ export function Modal({
 }
 
 export function SectionLabel({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={cn("text-[11px] font-semibold tracking-[0.08em] text-muted uppercase", className)}>{children}</div>
-  );
+  return <div className={cn("text-[11px] font-semibold tracking-[0.08em] text-muted uppercase", className)}>{children}</div>;
 }
 
 /** Time picker as a calm select, in `step`-minute increments. */
@@ -184,6 +181,7 @@ export function TimeSelect({
 export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label?: string }) {
   return (
     <button
+      type="button"
       role="switch"
       aria-checked={checked}
       aria-label={label}
@@ -191,10 +189,7 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
       className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors", checked ? "bg-accent" : "bg-border")}
     >
       <span
-        className={cn(
-          "absolute top-0.5 left-0.5 size-4 rounded-full bg-white shadow transition-transform",
-          checked && "translate-x-4",
-        )}
+        className={cn("absolute top-0.5 left-0.5 size-4 rounded-full bg-white shadow transition-transform", checked && "translate-x-4")}
       />
     </button>
   );

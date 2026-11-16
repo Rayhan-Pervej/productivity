@@ -24,7 +24,9 @@ export function repeatLabel(days: Weekday[]) {
   if (same(d, WEEKDAYS)) return "Weekdays";
   if (same(d, WEEKENDS)) return "Weekends";
   if (d.length === 1) return `Every ${WEEKDAY_LONG[d[0]]}`;
-  return WEEK_ORDER.filter((x) => d.includes(x)).map((x) => WEEKDAY_SHORT[x]).join(", ");
+  return WEEK_ORDER.filter((x) => d.includes(x))
+    .map((x) => WEEKDAY_SHORT[x])
+    .join(", ");
 }
 
 export const isSameDays = (a: Weekday[], b: Weekday[]) => same(normalizeDays(a), normalizeDays(b));

@@ -8,12 +8,11 @@ import type { TimeFormat } from "@/lib/time";
 import { REMINDER_SOUNDS, playSound } from "@/lib/sounds";
 import { SegmentedControl } from "./SegmentedControl";
 import { Select } from "./Select";
+import { IconButton } from "./IconButton";
 
 /** A rounded card that stacks setting rows with dividers. */
 export function SettingsGroup({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={cn("divide-y divide-border rounded-2xl border border-border bg-surface", className)}>{children}</div>
-  );
+  return <div className={cn("divide-y divide-border rounded-2xl border border-border bg-surface", className)}>{children}</div>;
 }
 
 /** Label on the left, control on the right, vertically centered. */
@@ -83,16 +82,7 @@ export function SoundControl({ value, onChange }: { value: string; onChange: (id
         options={REMINDER_SOUNDS.map((s) => ({ value: s.id, label: s.label }))}
         className="w-44"
       />
-      <button
-        type="button"
-        onClick={() => playSound(value)}
-        disabled={silent}
-        aria-label="Play sound"
-        title="Play"
-        className="grid size-8 cursor-pointer place-items-center rounded-lg border border-border bg-surface text-muted transition-colors hover:border-muted hover:text-fg disabled:cursor-default disabled:opacity-40"
-      >
-        <Play size={13} />
-      </button>
+      <IconButton variant="outline" label="Play sound" onClick={() => playSound(value)} disabled={silent} icon={<Play size={13} />} />
     </span>
   );
 }

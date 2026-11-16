@@ -32,18 +32,21 @@ export function TitleBar() {
         title="Progress counts what you chose to do. Background blocks don't count."
       >
         <div className="h-1.5 w-28 overflow-hidden rounded-full bg-surface-2 max-[900px]:w-14">
-          <div
-            className="h-full rounded-full bg-accent transition-[width] duration-700 ease-out"
-            style={{ width: `${ratio * 100}%` }}
-          />
+          <div className="h-full rounded-full bg-accent transition-[width] duration-700 ease-out" style={{ width: `${ratio * 100}%` }} />
         </div>
         <span className="tabular text-[12px] whitespace-nowrap text-muted">
           {total ? `${done} of ${total} done` : "Nothing tracked today"}
-          {steps > 0 && <span className="text-muted/80 max-[900px]:hidden"> · {stepsDone}/{steps} steps</span>}
+          {steps > 0 && (
+            <span className="text-muted/80 max-[900px]:hidden">
+              {" "}
+              · {stepsDone}/{steps} steps
+            </span>
+          )}
         </span>
       </div>
 
       <button
+        type="button"
         onClick={() => open("palette")}
         className="flex h-7 shrink-0 items-center gap-2 rounded-lg border border-border bg-surface px-2.5 text-[12px] text-muted transition-colors hover:text-text"
       >
@@ -69,6 +72,7 @@ export function NavRail() {
 
   const item = (v: View, label: string, Icon: LucideIcon, hint: string, badge?: number) => (
     <button
+      type="button"
       key={v}
       onClick={() => setView(v)}
       title={`${label} (${hint})`}

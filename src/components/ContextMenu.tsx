@@ -73,6 +73,7 @@ export function ContextMenuHost() {
   const actionable = items.map((it, i) => (it !== "separator" && !it.disabled ? i : -1)).filter((i) => i >= 0);
 
   // Keep the menu inside the window (flip left/up near the edges).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: new items mean a new size, so measure again
   useLayoutEffect(() => {
     if (!open || !panel.current) return;
     const { width, height } = panel.current.getBoundingClientRect();
@@ -145,6 +146,7 @@ export function ContextMenuHost() {
         >
           {items.map((it, i) =>
             it === "separator" ? (
+              // biome-ignore lint/suspicious/noArrayIndexKey: a menu's items are fixed while it is open
               <Separator key={`sep${i}`} />
             ) : (
               <div key={it.label} className="relative">
@@ -185,6 +187,7 @@ function SubmenuItems({ items, onDone }: { items: MenuItem[]; onDone: () => void
     <>
       {items.map((it, i) =>
         it === "separator" ? (
+          // biome-ignore lint/suspicious/noArrayIndexKey: a menu's items are fixed while it is open
           <Separator key={`sep${i}`} />
         ) : (
           <MenuRow
@@ -204,7 +207,7 @@ function SubmenuItems({ items, onDone }: { items: MenuItem[]; onDone: () => void
 }
 
 function Separator() {
-  return <div className="mx-2 my-1 h-px bg-border" role="separator" />;
+  return <hr className="mx-2 my-1 h-px border-0 bg-border" />;
 }
 
 /** One row: icon or check, label, keyboard hint or submenu arrow. */
@@ -223,8 +226,11 @@ function MenuRow({
 }) {
   const danger = item.danger && active;
   return (
+    // A row with a check mark is a checkbox item, so screen readers announce "checked".
+    // biome-ignore lint/a11y/useAriaPropsSupportedByRole: the role is chosen at runtime; aria-checked is only set on menuitemcheckbox
     <button
-      role="menuitem"
+      type="button"
+      role={item.checked === undefined ? "menuitem" : "menuitemcheckbox"}
       aria-haspopup={item.submenu ? "menu" : undefined}
       aria-expanded={item.submenu ? open : undefined}
       aria-checked={item.checked}

@@ -49,10 +49,16 @@ describe("quick add parser", () => {
 
   it("turns repeats with a time into routines", () => {
     expect(parse("standup meeting everyday 8:30am")).toMatchObject({
-      title: "Standup meeting", type: "routine", start: 8 * 60 + 30, repeat: [0, 1, 2, 3, 4, 5, 6],
+      title: "Standup meeting",
+      type: "routine",
+      start: 8 * 60 + 30,
+      repeat: [0, 1, 2, 3, 4, 5, 6],
     });
     expect(parse("ielts class every sun tue thu 9pm")).toMatchObject({
-      title: "Ielts class", type: "routine", start: 21 * 60, repeat: [0, 2, 4],
+      title: "Ielts class",
+      type: "routine",
+      start: 21 * 60,
+      repeat: [0, 2, 4],
     });
     expect(parse("gym every mon, wed and fri 7am").repeat).toEqual([1, 3, 5]);
     expect(parse("standup every weekday 9am #office")).toMatchObject({ repeat: [1, 2, 3, 4, 5], areaId: "office" });

@@ -13,8 +13,16 @@ export function AppLogo({ size = 20, className }: { size?: number; className?: s
       <rect x="0" y="0" width="32" height="32" rx="7" fill="#5B5BD6" />
       <circle cx="16" cy="16" r="9.6" fill="none" stroke="#fff" strokeOpacity="0.35" strokeWidth="5" />
       <circle
-        cx="16" cy="16" r="9.6" fill="none" stroke="#fff" strokeWidth="5" strokeLinecap="round"
-        strokeDasharray="60.3" strokeDashoffset="19.5" transform="rotate(-90 16 16)"
+        cx="16"
+        cy="16"
+        r="9.6"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeDasharray="60.3"
+        strokeDashoffset="19.5"
+        transform="rotate(-90 16 16)"
       />
     </svg>
   );

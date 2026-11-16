@@ -59,6 +59,7 @@ export function SegmentedControl<T extends string | number>({
                 transition={{ type: "spring", duration: 0.3, bounce: 0.12 }}
               />
             )}
+            {/* biome-ignore lint/a11y/useSemanticElements: an ARIA radiogroup of buttons; native radios can't look like segments */}
             <button
               type="button"
               role="radio"
@@ -75,7 +76,7 @@ export function SegmentedControl<T extends string | number>({
             >
               {o.icon}
               {o.label}
-              {o.dot && <span className="size-1.5 rounded-full bg-accent" aria-label="has items" />}
+              {o.dot && <span className="size-1.5 rounded-full bg-accent" role="img" aria-label="has items" />}
             </button>
             {o.onClose && (
               <button

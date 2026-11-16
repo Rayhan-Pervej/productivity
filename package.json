@@ -8,7 +8,11 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "biome lint",
+    "format": "biome format --write && cd src-tauri && cargo fmt",
+    "check": "biome check && tsc -b && vitest run",
+    "check:rust": "cd src-tauri && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
@@ -23,6 +27,7 @@
     "zustand": "^5.1.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.4",
     "@tailwindcss/vite": "^4.3.5",
     "@tauri-apps/cli": "^2.12.4",
     "@types/node": "^26.6.6",

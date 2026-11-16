@@ -1,4 +1,5 @@
 // Morning briefing, evening review and wake-up catch-up: docs/07-ui-ux-design.md §9–10, spec §6.2.
+import { StepDots } from "@/components/StepDots";
 import { useMemo, useState } from "react";
 import { Check, Coffee, Moon, Sun } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -6,7 +7,6 @@ import { useApp } from "@/store/app";
 import { blocksForDay } from "@/lib/days";
 import { dayProgress, missedBlocks, sortByStart, unresolvedBlocks } from "@/lib/day";
 import { fmtTime, todayLabel } from "@/lib/time";
-import { cn } from "@/lib/utils";
 import { Button, Modal, ProgressRing, SectionLabel } from "@/components/ui";
 import { Select } from "@/components/Select";
 import { TriageCard } from "@/features/today/ContextPanel";
@@ -128,16 +128,11 @@ function ReviewBody({ onDone }: { onDone: () => void }) {
   const wins = doneBlocks.length + doneTasks.length;
 
   const routines = useApp((s) => s.routines);
-  const tomorrowPlan = useMemo(
-    () => sortByStart(blocksForDay(1, [], templates, upcoming, routines)),
-    [templates, upcoming, routines],
-  );
+  const tomorrowPlan = useMemo(() => sortByStart(blocksForDay(1, [], templates, upcoming, routines)), [templates, upcoming, routines]);
 
   const steps = [
     <div key="wins">
-      <h2 className="text-[22px] font-semibold tracking-tight">
-        {wins ? `Nice work today${name ? `, ${name}` : ""}` : "A lighter day"}
-      </h2>
+      <h2 className="text-[22px] font-semibold tracking-tight">{wins ? `Nice work today${name ? `, ${name}` : ""}` : "A lighter day"}</h2>
       <p className="text-[13.5px] text-muted">
         {wins ? "Here's what you showed up for." : "That's okay. Some days are for living. Tomorrow is fresh."}
       </p>
@@ -203,11 +198,7 @@ function ReviewBody({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="p-7">
-      <div className="mb-5 flex justify-center gap-1.5">
-        {steps.map((_, i) => (
-          <span key={i} className={cn("h-1.5 rounded-full transition-all duration-300", i === step ? "w-6 bg-accent" : "w-1.5 bg-border")} />
-        ))}
-      </div>
+      <StepDots count={steps.length} current={step} className="mb-5 justify-center" />
 
       <AnimatePresence mode="wait">
         <motion.div

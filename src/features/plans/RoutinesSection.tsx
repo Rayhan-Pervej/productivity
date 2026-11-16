@@ -10,6 +10,7 @@ import { DateInput } from "@/components/DateInput";
 import { Button, Kbd, SectionLabel, TimeSelect } from "@/components/ui";
 import { AreaSelect } from "@/components/AreaSelect";
 import { WeekdayPicker } from "@/components/WeekdayPicker";
+import { IconButton } from "@/components/IconButton";
 
 export function RoutinesSection() {
   const routines = useApp((s) => s.routines);
@@ -64,9 +65,7 @@ function RoutineRow({ routine: r }: { routine: Routine }) {
       className={cn("group rounded-2xl border border-border bg-surface p-4", ended && "opacity-60 hover:opacity-100")}
     >
       {ended && (
-        <div className="mb-2 text-[11.5px] font-medium text-muted">
-          Ended {shortDate(r.until!)} · pick a later date to bring it back
-        </div>
+        <div className="mb-2 text-[11.5px] font-medium text-muted">Ended {shortDate(r.until!)} · pick a later date to bring it back</div>
       )}
       <div className="flex items-center gap-2">
         <span className="h-6 w-1 rounded-full" style={{ background: color }} />
@@ -81,14 +80,14 @@ function RoutineRow({ routine: r }: { routine: Routine }) {
         <TimeSelect label="Start" value={r.start} step={15} onChange={(start) => updateRoutine(r.id, { start, end: start + duration })} />
         <span className="text-muted">–</span>
         <TimeSelect label="End" value={r.end} from={r.start + 15} step={15} onChange={(end) => updateRoutine(r.id, { end })} />
-        <button
-          onClick={() => stopRoutine(r.id)}
-          aria-label="Stop repeating"
+        <IconButton
+          tone="danger"
+          label="Stop repeating"
           title="Stop repeating (today's copy stays)"
-          className="grid size-8 place-items-center rounded-lg text-muted opacity-0 transition-all group-hover:opacity-100 hover:bg-danger/10 hover:text-danger"
-        >
-          <Trash2 size={14} />
-        </button>
+          onClick={() => stopRoutine(r.id)}
+          icon={<Trash2 size={14} />}
+          className="opacity-0 transition-all group-hover:opacity-100"
+        />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3 pl-3">
         <WeekdayPicker

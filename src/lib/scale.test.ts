@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { dayWindow, gapHeight, gapPosition, trackedHeight } from "./scale";
 
-
 describe("timeline scale", () => {
   it("gives empty time a height for every 10 minutes: longer is always taller", () => {
     for (let m = 10; m <= 24 * 60; m += 10) expect(gapHeight(m)).toBeGreaterThan(gapHeight(m - 10));

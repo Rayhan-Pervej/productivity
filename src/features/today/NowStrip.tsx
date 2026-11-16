@@ -9,7 +9,7 @@ import { freeWindow } from "@/lib/day";
 import { fmtDuration, fmtTime } from "@/lib/time";
 import { useDismiss } from "@/lib/useDismiss";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui";
+import { Button, SectionLabel } from "@/components/ui";
 import { AnytimeSection, Missed, NowSection, useTodayLists } from "./ContextPanel";
 
 export function NowStrip() {
@@ -30,6 +30,7 @@ export function NowStrip() {
   return (
     // The detail drops down *over* the timeline (like a menu), so the timeline never resizes or scrolls.
     <div ref={root} className="@container relative z-30 mx-6 mt-3">
+      {/* biome-ignore lint/a11y/useSemanticElements: it holds a Done button, and buttons can't nest */}
       <div
         role="button"
         tabIndex={0}
@@ -97,9 +98,7 @@ function Summary({ folded }: { folded: boolean }) {
     );
   } else {
     current = (
-      <span className="truncate text-muted">
-        {free.nextAny ? `Free until ${fmtTime(free.until)}` : "Free for the rest of the day"}
-      </span>
+      <span className="truncate text-muted">{free.nextAny ? `Free until ${fmtTime(free.until)}` : "Free for the rest of the day"}</span>
     );
   }
 
@@ -150,6 +149,7 @@ function Counts() {
   );
 }
 
+/** The shared section label, kept on one line inside the strip. */
 function Label({ children }: { children: ReactNode }) {
-  return <span className="shrink-0 text-[11px] font-semibold tracking-wider whitespace-nowrap text-muted uppercase">{children}</span>;
+  return <SectionLabel className="shrink-0 whitespace-nowrap">{children}</SectionLabel>;
 }

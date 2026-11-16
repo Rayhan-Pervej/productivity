@@ -4,9 +4,10 @@ import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useApp } from "@/store/app";
 import { cn } from "@/lib/utils";
+import { daysBetween, startOfDay } from "@/lib/time";
+import { IconButton } from "@/components/IconButton";
 
-const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-const offsetOf = (d: Date) => Math.round((startOfDay(d).getTime() - startOfDay(new Date()).getTime()) / 86_400_000);
+const offsetOf = (d: Date) => daysBetween(new Date(), d);
 const WEEK = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 /** How far back history can be viewed (read only). */
 export const HISTORY_DAYS = 60;
@@ -21,18 +22,7 @@ export function DayPicker({ selected, onPick }: { selected: number; onPick: (off
 
   return (
     <div ref={root} className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        aria-label="Pick a day"
-        aria-expanded={open}
-        title="Pick a day"
-        className={cn(
-          "grid size-8 place-items-center rounded-lg transition-colors",
-          open ? "bg-surface-2 text-accent" : "text-muted hover:bg-surface-2 hover:text-text",
-        )}
-      >
-        <CalendarDays size={16} />
-      </button>
+      <IconButton label="Pick a day" active={open} aria-expanded={open} onClick={() => setOpen(!open)} icon={<CalendarDays size={16} />} />
       <AnimatePresence>
         {open && (
           <motion.div
@@ -75,8 +65,8 @@ function Month({ selected, onPick }: { selected: number; onPick: (offset: number
       if (!list.includes(color)) list.push(color);
       map.set(offset, list);
     };
-    upcoming.forEach((b) => add(b.dayOffset, b.areaId));
-    anytime.forEach((t) => t.dayOffset && add(t.dayOffset, t.areaId));
+    for (const b of upcoming) add(b.dayOffset, b.areaId);
+    for (const t of anytime) if (t.dayOffset) add(t.dayOffset, t.areaId);
     return map;
   }, [upcoming, anytime, areas]);
 
@@ -99,21 +89,14 @@ function Month({ selected, onPick }: { selected: number; onPick: (offset: number
         <span className="flex-1 text-[13.5px] font-semibold">
           {cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
         </span>
-        <button
-          onClick={() => shift(-1)}
+        <IconButton
+          label="Previous month"
+          className="size-7"
           disabled={atOldestMonth}
-          aria-label="Previous month"
-          className="grid size-7 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-text disabled:opacity-30"
-        >
-          <ChevronLeft size={15} />
-        </button>
-        <button
-          onClick={() => shift(1)}
-          aria-label="Next month"
-          className="grid size-7 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-text"
-        >
-          <ChevronRight size={15} />
-        </button>
+          onClick={() => shift(-1)}
+          icon={<ChevronLeft size={15} />}
+        />
+        <IconButton label="Next month" className="size-7" onClick={() => shift(1)} icon={<ChevronRight size={15} />} />
       </div>
 
       <div className="grid grid-cols-7 gap-0.5 text-center">
@@ -123,6 +106,7 @@ function Month({ selected, onPick }: { selected: number; onPick: (offset: number
           </div>
         ))}
         {cells.map((date, i) => {
+          // biome-ignore lint/suspicious/noArrayIndexKey: empty leading cells; their position is their identity
           if (!date) return <div key={`e${i}`} />;
           const offset = offsetOf(date);
           const past = offset < 0;
@@ -130,6 +114,7 @@ function Month({ selected, onPick }: { selected: number; onPick: (offset: number
           const dots = marks.get(offset) ?? [];
           return (
             <button
+              type="button"
               key={offset}
               disabled={outOfRange}
               onClick={() => onPick(offset)}
@@ -147,11 +132,7 @@ function Month({ selected, onPick }: { selected: number; onPick: (offset: number
               {dots.length > 0 && (
                 <span className="absolute bottom-1 flex gap-0.5">
                   {dots.slice(0, 3).map((c) => (
-                    <span
-                      key={c}
-                      className="size-1 rounded-full"
-                      style={{ background: offset === selected ? "var(--accent-fg)" : c }}
-                    />
+                    <span key={c} className="size-1 rounded-full" style={{ background: offset === selected ? "var(--accent-fg)" : c }} />
                   ))}
                 </span>
               )}
@@ -164,7 +145,7 @@ function Month({ selected, onPick }: { selected: number; onPick: (offset: number
         <span className="flex items-center gap-1.5">
           <span className="size-1.5 rounded-full bg-accent" /> = you added something
         </span>
-        <button onClick={() => onPick(0)} className="font-medium text-accent hover:underline">
+        <button type="button" onClick={() => onPick(0)} className="font-medium text-accent hover:underline">
           Today
         </button>
       </div>

@@ -33,7 +33,6 @@ export function gapHeight(minutes: number) {
   return at120 + (m - 120) * GAP_RATE.beyond;
 }
 
-
 /**
  * Your waking day, from quiet hours: it starts when quiet hours end and ends when they begin.
  * 00:00–07:00 → 07:00 to midnight. 23:00–07:00 → 07:00 to 23:00.

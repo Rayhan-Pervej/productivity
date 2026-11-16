@@ -7,7 +7,7 @@ import { LAYOUT, useMediaQuery } from "@/lib/useMediaQuery";
 import { blocksForDay } from "@/lib/days";
 import { Button, Kbd } from "@/components/ui";
 import { SegmentedControl } from "@/components/SegmentedControl";
-import { Timeline } from "./Timeline";
+import { Timeline } from "./timeline/Timeline";
 import { ContextPanel } from "./ContextPanel";
 import { DayPicker } from "./DayPicker";
 import { NowStrip } from "./NowStrip";
@@ -57,43 +57,42 @@ export function TodayView() {
 
   // Wide window: the Now panel sits beside the timeline. Narrower: it folds into the Now strip.
   const wide = useMediaQuery(LAYOUT.wide);
-  const addedCount = (d: number) =>
-    upcoming.filter((b) => b.dayOffset === d).length + anytime.filter((t) => t.dayOffset === d).length;
+  const addedCount = (d: number) => upcoming.filter((b) => b.dayOffset === d).length + anytime.filter((t) => t.dayOffset === d).length;
 
   return (
     <>
       <div className="flex min-w-0 flex-1 flex-col">
         {/* The toolbar folds by its own width: the date, then details, give way before the controls. */}
         <div className="@container">
-        <div className="flex items-center gap-2 px-6 pt-4">
-          <SegmentedControl
-            label="Day"
-            value={day}
-            onChange={setDay}
-            options={[
-              { value: 0, label: "Today" },
-              { value: 1, label: "Tomorrow", dot: addedCount(1) > 0 },
-              ...(picked !== null
-                ? [{ value: picked, label: dayLabel(picked), dot: addedCount(picked) > 0, onClose: closePicked }]
-                : []),
-            ]}
-          />
-          <DayPicker selected={day} onPick={pick} />
-          {(day === 0 || day === 1) && <span className="@max-[720px]:hidden shrink-0 text-[12.5px] whitespace-nowrap text-muted">{todayLabel(day)}</span>}
-          <DaySummary blocks={day === 0 ? blocks : history ? pastBlocks : futureBlocks} showDone={day <= 0} />
-          {history ? (
-            <span
-              className="ml-auto flex shrink-0 items-center gap-1.5 rounded-md bg-surface px-2 py-1 text-[12px] text-muted"
-              title="Past days are kept as they were. You can look, not change."
-            >
-              <Eye size={13} /> View only
-            </span>
-          ) : (
-            <Button size="sm" variant="ghost" className="ml-auto shrink-0" onClick={() => open("quickAdd", dayPhrase(day))}>
-              <Plus size={14} /> Add <Kbd>N</Kbd>
-            </Button>
-          )}
-        </div>
+          <div className="flex items-center gap-2 px-6 pt-4">
+            <SegmentedControl
+              label="Day"
+              value={day}
+              onChange={setDay}
+              options={[
+                { value: 0, label: "Today" },
+                { value: 1, label: "Tomorrow", dot: addedCount(1) > 0 },
+                ...(picked !== null ? [{ value: picked, label: dayLabel(picked), dot: addedCount(picked) > 0, onClose: closePicked }] : []),
+              ]}
+            />
+            <DayPicker selected={day} onPick={pick} />
+            {(day === 0 || day === 1) && (
+              <span className="@max-[720px]:hidden shrink-0 text-[12.5px] whitespace-nowrap text-muted">{todayLabel(day)}</span>
+            )}
+            <DaySummary blocks={day === 0 ? blocks : history ? pastBlocks : futureBlocks} showDone={day <= 0} />
+            {history ? (
+              <span
+                className="ml-auto flex shrink-0 items-center gap-1.5 rounded-md bg-surface px-2 py-1 text-[12px] text-muted"
+                title="Past days are kept as they were. You can look, not change."
+              >
+                <Eye size={13} /> View only
+              </span>
+            ) : (
+              <Button size="sm" variant="ghost" className="ml-auto shrink-0" onClick={() => open("quickAdd", dayPhrase(day))}>
+                <Plus size={14} /> Add <Kbd>N</Kbd>
+              </Button>
+            )}
+          </div>
         </div>
 
         {day === 0 && !wide && <NowStrip />}
@@ -139,29 +138,29 @@ function DaySummary({ blocks, showDone }: { blocks: Block[]; showDone: boolean }
     planned ? `${fmtDuration(planned)} planned · ${tracked.length} ${tracked.length === 1 ? "block" : "blocks"}` : "Nothing planned",
     showDone && done > 0 ? `${fmtDuration(done)} done` : "",
     ...background.map((b) => `${b.title} ${fmtDuration(b.end - b.start)} (background)`),
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return (
-    <div
-      className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[12px] whitespace-nowrap @max-[540px]:hidden"
-      title={full}
-    >
+    <div className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[12px] whitespace-nowrap @max-[540px]:hidden" title={full}>
       <span className="text-border">|</span>
-      <span
-        className="tabular flex shrink-0 items-center gap-1.5 rounded-md bg-surface px-2 py-0.5 font-medium"
-      >
+      <span className="tabular flex shrink-0 items-center gap-1.5 rounded-md bg-surface px-2 py-0.5 font-medium">
         <Clock size={12} className="text-accent" />
         {planned ? `${fmtDuration(planned)} planned` : "Nothing planned"}
-        {planned > 0 && <span className="font-normal text-muted @max-[860px]:hidden">· {tracked.length} {tracked.length === 1 ? "block" : "blocks"}</span>}
+        {planned > 0 && (
+          <span className="font-normal text-muted @max-[860px]:hidden">
+            · {tracked.length} {tracked.length === 1 ? "block" : "blocks"}
+          </span>
+        )}
       </span>
       {showDone && done > 0 && (
-        <span className="tabular shrink-0 rounded-md bg-surface px-2 py-0.5 text-success @max-[640px]:hidden">{fmtDuration(done)} done</span>
+        <span className="tabular shrink-0 rounded-md bg-surface px-2 py-0.5 text-success @max-[640px]:hidden">
+          {fmtDuration(done)} done
+        </span>
       )}
       {background.map((b) => (
-        <span
-          key={b.id}
-          className="tabular flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-muted @max-[980px]:hidden"
-        >
+        <span key={b.id} className="tabular flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-muted @max-[980px]:hidden">
           <span className="size-1.5 rounded-full" style={{ background: areas.find((a) => a.id === b.areaId)?.color }} />
           {b.title} {fmtDuration(b.end - b.start)}
         </span>

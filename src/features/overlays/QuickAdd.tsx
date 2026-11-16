@@ -8,7 +8,13 @@ import { blocksForDay } from "@/lib/days";
 import { fmtDuration, fmtTime } from "@/lib/time";
 import { AreaDot, Kbd, Modal } from "@/components/ui";
 
-const EXAMPLES = ["client call 9pm 45m", "study dsa 1h tonight", "standup weekdays 8:30am #office", "ielts every sun tue thu 9pm", "submit invoice by fri"];
+const EXAMPLES = [
+  "client call 9pm 45m",
+  "study dsa 1h tonight",
+  "standup weekdays 8:30am #office",
+  "ielts every sun tue thu 9pm",
+  "submit invoice by fri",
+];
 
 export function QuickAdd() {
   const isOpen = useApp((s) => s.overlay === "quickAdd");
@@ -51,12 +57,12 @@ function QuickAddBody() {
     parsed.type === "routine" && parsed.start !== undefined && parsed.repeat
       ? `Repeats ${repeatPhrase(parsed.repeat)} at ${fmtTime(parsed.start)}${parsed.until ? `, ${untilPhrase(parsed.until)}` : ""}, on the timeline`
       : parsed.type === "fixed" && parsed.start !== undefined
-      ? `On the timeline · ${parsed.dayLabel} ${fmtTime(parsed.start)}`
-      : parsed.type === "backlog" && !parsed.areaId
-        ? "Inbox, to sort later"
-        : parsed.day > 0
-          ? `Anytime on ${parsed.dayLabel}, no fixed time`
-          : "Anytime today, no fixed time";
+        ? `On the timeline · ${parsed.dayLabel} ${fmtTime(parsed.start)}`
+        : parsed.type === "backlog" && !parsed.areaId
+          ? "Inbox, to sort later"
+          : parsed.day > 0
+            ? `Anytime on ${parsed.dayLabel}, no fixed time`
+            : "Anytime today, no fixed time";
   const needsTimeHint = parsed.start === undefined && parsed.type !== "deadline" && parsed.type !== "habit";
 
   // Typed only a time (e.g. clicked a free slot)? Offer to put an existing task there.
@@ -139,6 +145,7 @@ function QuickAddBody() {
                 <div className="flex flex-wrap gap-1.5">
                   {placeable.map((t) => (
                     <button
+                      type="button"
                       key={t.id}
                       onClick={() => {
                         scheduleTask(t.id, parsed.start!);
@@ -154,7 +161,8 @@ function QuickAddBody() {
             )}
             {clash && (
               <span className="flex w-full items-center gap-1.5 pt-1 text-[12px] text-attention">
-                <AlertTriangle size={13} /> Overlaps with “{clash.title}” {fmtTime(clash.start)}–{fmtTime(clash.end)}. Both will show side by side.
+                <AlertTriangle size={13} /> Overlaps with “{clash.title}” {fmtTime(clash.start)}–{fmtTime(clash.end)}. Both will show side
+                by side.
               </span>
             )}
           </div>
@@ -162,6 +170,7 @@ function QuickAddBody() {
           <div className="flex flex-wrap gap-1.5">
             {EXAMPLES.map((ex) => (
               <button
+                type="button"
                 key={ex}
                 onClick={() => {
                   setText(ex);
@@ -191,8 +200,6 @@ function QuickAddBody() {
 
 function Chip({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <span className={`flex items-center gap-1.5 rounded-md bg-surface px-2 py-1 text-[12.5px] font-medium ${className}`}>
-      {children}
-    </span>
+    <span className={`flex items-center gap-1.5 rounded-md bg-surface px-2 py-1 text-[12.5px] font-medium ${className}`}>{children}</span>
   );
 }

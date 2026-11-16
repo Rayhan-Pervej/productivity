@@ -1,4 +1,4 @@
-﻿//! Reminder scheduler.
+//! Reminder scheduler.
 //!
 //! Reminders are computed from the database (`store::reminders_for_today`) whenever the plan
 //! changes, at startup, and when a new day begins. This task sleeps until the next one is due
@@ -136,11 +136,19 @@ pub fn start(app: AppHandle) {
                 let mut all = scheduler.reminders.lock().unwrap().clone();
                 all.extend(scheduler.snoozed.lock().unwrap().iter().cloned());
                 let mut fired = scheduler.fired.lock().unwrap();
-                let due: Vec<Reminder> = all.iter().filter(|r| r.at <= now && !fired.contains(&r.id)).cloned().collect();
+                let due: Vec<Reminder> = all
+                    .iter()
+                    .filter(|r| r.at <= now && !fired.contains(&r.id))
+                    .cloned()
+                    .collect();
                 for r in &due {
                     fired.insert(r.id.clone());
                 }
-                let next_at = all.iter().filter(|r| r.at > now && !fired.contains(&r.id)).map(|r| r.at).min();
+                let next_at = all
+                    .iter()
+                    .filter(|r| r.at > now && !fired.contains(&r.id))
+                    .map(|r| r.at)
+                    .min();
                 (due, next_at)
             };
 
@@ -173,7 +181,10 @@ fn deliver(app: &AppHandle, due: Vec<Reminder>, now: i64) {
     // One calm summary instead of a burst of stale notifications.
     if !late.is_empty() {
         let n = late.len();
-        let body = format!("{n} {} passed while you were away.", if n == 1 { "reminder" } else { "reminders" });
+        let body = format!(
+            "{n} {} passed while you were away.",
+            if n == 1 { "reminder" } else { "reminders" }
+        );
         notify(app, "Welcome back", &body, &[("Review", "catchup")], None);
     }
 }
@@ -195,13 +206,23 @@ fn handle(app: &AppHandle, reminder: Option<&Reminder>, action: Option<&str>) {
         Some("dismiss") => {}
         // These need the UI in front of the user.
         Some(a @ ("focus" | "catchup")) => {
-            dispatch(app, Action { block_id, action: a.into() });
+            dispatch(
+                app,
+                Action {
+                    block_id,
+                    action: a.into(),
+                },
+            );
             window::show_main(app, None);
         }
         // These just change data; apply quietly, even with the window closed.
-        Some(a @ ("done" | "skip" | "extend" | "tomorrow" | "backlog")) => {
-            dispatch(app, Action { block_id, action: a.into() })
-        }
+        Some(a @ ("done" | "skip" | "extend" | "tomorrow" | "backlog")) => dispatch(
+            app,
+            Action {
+                block_id,
+                action: a.into(),
+            },
+        ),
         // "open", or a click on the notification body.
         _ => window::show_main(app, None),
     }
@@ -221,12 +242,18 @@ fn notify(app: &AppHandle, title: &str, body: &str, buttons: &[(&str, &str)], re
     use tauri_winrt_notification::Toast;
 
     // Our own registered identity; PowerShell's only as a last-resort fallback.
-    let app_id = APP_ID.get().cloned().unwrap_or_else(|| Toast::POWERSHELL_APP_ID.to_string());
+    let app_id = APP_ID
+        .get()
+        .cloned()
+        .unwrap_or_else(|| Toast::POWERSHELL_APP_ID.to_string());
 
     // Our own sounds are played by us (Windows won't attach them to an unpackaged app's toast).
     let chosen = {
         let db = app.state::<Db>();
-        let sound = db.0.lock().map(|conn| store::notification_sound(&conn)).unwrap_or_else(|_| "marimba".into());
+        let sound =
+            db.0.lock()
+                .map(|conn| store::notification_sound(&conn))
+                .unwrap_or_else(|_| "marimba".into());
         sound
     };
     let mut toast = Toast::new(&app_id).title(title).text1(body);

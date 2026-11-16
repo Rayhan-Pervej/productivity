@@ -3,14 +3,26 @@ import { dayProgress, freeStarts, missedBlocks, suggest } from "./day";
 import type { Block, Task } from "@/domain/types";
 
 const block = (over: Partial<Block>): Block => ({
-  id: Math.random().toString(36), title: "x", areaId: "office", kind: "commitment",
-  start: 0, end: 60, status: "planned", subtasks: [], ...over,
+  id: Math.random().toString(36),
+  title: "x",
+  areaId: "office",
+  kind: "commitment",
+  start: 0,
+  end: 60,
+  status: "planned",
+  subtasks: [],
+  ...over,
 });
 
 describe("day logic", () => {
   it("counts steps in progress, and a done block completes its steps", () => {
     const blocks = [
-      block({ subtasks: [{ id: "a", title: "a", done: true }, { id: "b", title: "b", done: false }] }),
+      block({
+        subtasks: [
+          { id: "a", title: "a", done: true },
+          { id: "b", title: "b", done: false },
+        ],
+      }),
       block({ status: "done", subtasks: [{ id: "c", title: "c", done: false }] }),
       block({}),
       block({ kind: "context" }), // background blocks never count

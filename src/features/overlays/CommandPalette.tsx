@@ -1,6 +1,19 @@
 import { Command } from "cmdk";
 import {
-  CalendarDays, Check, Coffee, Inbox, LayoutTemplate, Moon, Plus, Settings, Sparkles, Sun, Sunrise, Target, Undo2, type LucideIcon,
+  CalendarDays,
+  Check,
+  Coffee,
+  Inbox,
+  LayoutTemplate,
+  Moon,
+  Plus,
+  Settings,
+  Sparkles,
+  Sun,
+  Sunrise,
+  Target,
+  Undo2,
+  type LucideIcon,
 } from "lucide-react";
 import { useApp, useCurrent } from "@/store/app";
 import { Kbd, Modal } from "@/components/ui";
@@ -39,7 +52,8 @@ function PaletteBody() {
     </Command.Item>
   );
 
-  const group = "px-2 pb-1 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted [&_[cmdk-group-heading]]:uppercase";
+  const group =
+    "px-2 pb-1 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted [&_[cmdk-group-heading]]:uppercase";
 
   return (
     <Command label="Command palette" loop>

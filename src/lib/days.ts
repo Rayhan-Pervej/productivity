@@ -4,13 +4,7 @@ import { blocksFromTemplate, templateForWeekday } from "@/data/seed";
 import { blocksFromRoutines } from "@/lib/repeat";
 import { dateOf, weekdayOf } from "@/lib/time";
 
-export function blocksForDay(
-  offset: number,
-  today: Block[],
-  templates: Template[],
-  upcoming: DatedBlock[],
-  routines: Routine[],
-): Block[] {
+export function blocksForDay(offset: number, today: Block[], templates: Template[], upcoming: DatedBlock[], routines: Routine[]): Block[] {
   if (offset === 0) return today;
   const added = upcoming.filter((b) => b.dayOffset === offset);
   const linked = new Set(added.map((b) => b.routineId).filter(Boolean));

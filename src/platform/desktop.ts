@@ -73,12 +73,19 @@ export async function previewNotification(kind: "upcoming" | "starting" | "endin
   const tracked = s.blocks.filter((b) => b.kind === "commitment" && b.status === "planned");
   const current = tracked.find((b) => b.start <= s.now && s.now < b.end);
   const target =
-    kind === "upcoming" ? tracked.filter((b) => b.start > s.now).sort((a, b) => a.start - b.start)[0]
-    : kind === "missed" ? tracked.filter((b) => b.end <= s.now).sort((a, b) => a.start - b.start)[0]
-    : current;
+    kind === "upcoming"
+      ? tracked.filter((b) => b.start > s.now).sort((a, b) => a.start - b.start)[0]
+      : kind === "missed"
+        ? tracked.filter((b) => b.end <= s.now).sort((a, b) => a.start - b.start)[0]
+        : current;
   if (!target) {
     // Nothing fits at this time: show the toast with a sample, so the look and sound can still be checked.
-    const sample = { upcoming: ["Sample block", `Starts in ${s.settings.leadMinutes} min`], starting: ["Time for focus", "Sample block"], ending: ["Your block is ending", "Is Sample block done?"], missed: ["Sample block didn't happen", "Want to find it a new spot?"] }[kind];
+    const sample = {
+      upcoming: ["Sample block", `Starts in ${s.settings.leadMinutes} min`],
+      starting: ["Time for focus", "Sample block"],
+      ending: ["Your block is ending", "Is Sample block done?"],
+      missed: ["Sample block didn't happen", "Want to find it a new spot?"],
+    }[kind];
     await invoke("preview_notification", {
       reminder: { id: `preview:${kind}:${Date.now()}`, blockId: "", kind, title: sample[0], body: sample[1], at: Date.now() },
     });

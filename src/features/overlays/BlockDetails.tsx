@@ -13,14 +13,13 @@ import { DateInput } from "@/components/DateInput";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { isoDay } from "@/lib/time";
 import type { Block, DatedBlock } from "@/domain/types";
+import { IconButton } from "@/components/IconButton";
 
 export function BlockDetails() {
   const isOpen = useApp((s) => s.overlay === "block");
   const close = useApp((s) => s.close);
   // The block may be today's or one planned on a future day.
-  const block = useApp(
-    (s) => s.blocks.find((b) => b.id === s.selectedBlockId) ?? s.upcoming.find((b) => b.id === s.selectedBlockId),
-  );
+  const block = useApp((s) => s.blocks.find((b) => b.id === s.selectedBlockId) ?? s.upcoming.find((b) => b.id === s.selectedBlockId));
   return (
     <Modal open={isOpen && !!block} onClose={close} width={500}>
       {block && <Body block={block} />}
@@ -70,8 +69,8 @@ function Body({ block }: { block: Block | DatedBlock }) {
     : routine
       ? "Delete removes it from today only. It still repeats on its other days."
       : block.fromPlan
-      ? "Delete removes it from today only. To change every day, edit Plans."
-      : null;
+        ? "Delete removes it from today only. To change every day, edit Plans."
+        : null;
 
   return (
     <div className="p-6">
@@ -94,20 +93,9 @@ function Body({ block }: { block: Block | DatedBlock }) {
 
       {/* When and what */}
       <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px]">
-        <TimeSelect
-          label="Start"
-          value={block.start}
-          step={15}
-          onChange={(start) => edit({ start, end: start + duration })}
-        />
+        <TimeSelect label="Start" value={block.start} step={15} onChange={(start) => edit({ start, end: start + duration })} />
         <span className="text-muted">–</span>
-        <TimeSelect
-          label="End"
-          value={block.end}
-          from={block.start + 15}
-          step={15}
-          onChange={(end) => edit({ end })}
-        />
+        <TimeSelect label="End" value={block.end} from={block.start + 15} step={15} onChange={(end) => edit({ end })} />
         <span className="tabular text-muted">{fmtDuration(duration)}</span>
         <AreaSelect className="ml-auto" value={block.areaId} onChange={(areaId) => edit({ areaId })} />
       </div>
@@ -138,9 +126,7 @@ function Body({ block }: { block: Block | DatedBlock }) {
         <div className="mt-5">
           <div className="mb-2 flex items-center text-[12px] text-muted">
             <span className="font-semibold tracking-wider uppercase">Repeat</span>
-            <span className="ml-auto">
-              {routine ? `${repeatLabel(routine.days)} ${untilPhrase(routine.until)}` : "Doesn't repeat"}
-            </span>
+            <span className="ml-auto">{routine ? `${repeatLabel(routine.days)} ${untilPhrase(routine.until)}` : "Doesn't repeat"}</span>
           </div>
           <WeekdayPicker value={routine?.days ?? []} onChange={(days) => setRepeat(block.id, days.length ? days : null)} />
           {routine && (
@@ -169,7 +155,13 @@ function Body({ block }: { block: Block | DatedBlock }) {
 
       <div className="mt-6 flex items-center gap-2">
         {isToday && block.status === "planned" && (
-          <Button variant="success" onClick={() => { completeBlock(block.id); close(); }}>
+          <Button
+            variant="success"
+            onClick={() => {
+              completeBlock(block.id);
+              close();
+            }}
+          >
             <Check size={15} /> Done
           </Button>
         )}
@@ -227,6 +219,7 @@ export function Steps({ block, autoFocus = false, compact = false }: { block: Bl
             className="group flex items-center gap-2.5 rounded-lg px-1.5 py-1.5 hover:bg-surface-2"
           >
             <button
+              type="button"
               onClick={() => toggleSubtask(block.id, t.id)}
               aria-label={t.done ? "Mark step not done" : "Mark step done"}
               className={cn(
@@ -237,13 +230,13 @@ export function Steps({ block, autoFocus = false, compact = false }: { block: Bl
               {t.done && <Check size={11} strokeWidth={3} />}
             </button>
             <span className={cn("flex-1 text-[14px]", t.done && "text-muted line-through")}>{t.title}</span>
-            <button
+            <IconButton
+              size="sm"
+              label="Remove step"
               onClick={() => removeSubtask(block.id, t.id)}
-              aria-label="Remove step"
-              className="grid size-6 place-items-center rounded-md text-muted opacity-0 transition-opacity group-hover:opacity-100 hover:text-text"
-            >
-              <X size={13} />
-            </button>
+              icon={<X size={13} />}
+              className="opacity-0 transition-opacity group-hover:opacity-100"
+            />
           </motion.div>
         ))}
       </AnimatePresence>

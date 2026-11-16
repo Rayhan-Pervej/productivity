@@ -116,16 +116,26 @@
 
 /* A block becoming done: a gentle lift and settle. */
 @keyframes done-pop {
-  0% { transform: scale(1); }
-  35% { transform: scale(1.018); box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 35%, transparent); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0 transparent; }
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.018);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 35%, transparent);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 transparent;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must override every component's own timing */
     transition-duration: 0ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: same reason */
     animation-duration: 0ms !important;
   }
 }

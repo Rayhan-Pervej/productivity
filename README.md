@@ -19,6 +19,10 @@ pnpm tauri dev     # desktop app, development
 pnpm tauri build   # installer in src-tauri/target/release/bundle/nsis
 pnpm test          # UI logic tests (Vitest)
 cd src-tauri && cargo test   # data/core tests (Rust)
+
+pnpm check         # before committing: lint + format check (Biome), types, tests
+pnpm check:rust    # same for Rust: rustfmt, clippy (warnings fail), tests
+pnpm format        # format everything (Biome + rustfmt)
 ```
 
 ## Run the UI

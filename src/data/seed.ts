@@ -16,7 +16,12 @@ export const AREAS: Area[] = [
 export const h = (hours: number, minutes = 0) => hours * 60 + minutes;
 
 export const tb = (title: string, areaId: string, kind: BlockKind, start: number, end: number): TemplateBlock => ({
-  id: uid(), title, areaId, kind, start, end,
+  id: uid(),
+  title,
+  areaId,
+  kind,
+  start,
+  end,
 });
 
 /** Starter plans, used until you set up your own. */
@@ -37,10 +42,7 @@ export const TEMPLATES: Template[] = [
     id: "weekend",
     name: "Weekend",
     days: "Sat – Sun",
-    blocks: [
-      tb("Study", "study", "commitment", h(11), h(13)),
-      tb("Reading", "reading", "commitment", h(22), h(22, 30)),
-    ],
+    blocks: [tb("Study", "study", "commitment", h(11), h(13)), tb("Reading", "reading", "commitment", h(22), h(22, 30))],
   },
   {
     id: "holiday",

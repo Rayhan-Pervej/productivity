@@ -26,7 +26,7 @@ if (import.meta.env.DEV) {
     for (const b of st.blocks.filter((x) => x.kind === "commitment" && x.start <= st.now && st.now < x.end)) {
       for (const title of q.get("steps")!.split(";")) useApp.getState().addSubtask(b.id, title);
       const fresh = useApp.getState().blocks.find((x) => x.id === b.id)!;
-      fresh.subtasks.slice(0, Number(q.get("stepsdone") ?? 0)).forEach((t) => useApp.getState().toggleSubtask(b.id, t.id));
+      for (const t of fresh.subtasks.slice(0, Number(q.get("stepsdone") ?? 0))) useApp.getState().toggleSubtask(b.id, t.id);
     }
   }
   // ?details=1 opens the details window of the block happening now
@@ -49,9 +49,11 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).get("menu")) {
   const kind = new URLSearchParams(location.search).get("menu");
   setTimeout(() => {
     const target =
-      kind === "block" ? document.querySelector('[title^="Open details"]')
-      : kind === "band" ? document.querySelector('[aria-label^="Add something during"]')
-      : document.querySelector("main");
+      kind === "block"
+        ? document.querySelector('[title^="Open details"]')
+        : kind === "band"
+          ? document.querySelector('[aria-label^="Add something during"]')
+          : document.querySelector("main");
     if (!target) return;
     const r = target.getBoundingClientRect();
     const x = r.left + Math.min(220, r.width / 2);

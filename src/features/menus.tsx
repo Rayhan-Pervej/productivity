@@ -1,7 +1,25 @@
 // What the right-click menu offers, by what was clicked. One place for all menu wording and actions.
 import {
-  ArrowRight, CalendarClock, CalendarDays, Check, Clock, Inbox, LayoutTemplate, ListChecks, Moon, Play, Plus,
-  Repeat, RotateCcw, Settings, SkipForward, Sparkles, Sunrise, Trash2, Undo2, X,
+  ArrowRight,
+  CalendarClock,
+  CalendarDays,
+  Check,
+  Clock,
+  Inbox,
+  LayoutTemplate,
+  ListChecks,
+  Moon,
+  Play,
+  Plus,
+  Repeat,
+  RotateCcw,
+  Settings,
+  SkipForward,
+  Sparkles,
+  Sunrise,
+  Trash2,
+  Undo2,
+  X,
 } from "lucide-react";
 import type { MenuItem } from "@/components/ContextMenu";
 import type { Block, Task, Weekday } from "@/domain/types";
@@ -17,7 +35,12 @@ const I = 15; // icon size
  * "Repeat ▸" submenu: presets with a check on the current choice, custom days, or stop.
  * `weekday` is the day the block is on, for "Every Tuesday".
  */
-function repeatSubmenu(current: Weekday[] | undefined, weekday: Weekday, apply: (days: Weekday[] | null) => void, custom: () => void): MenuItem {
+function repeatSubmenu(
+  current: Weekday[] | undefined,
+  weekday: Weekday,
+  apply: (days: Weekday[] | null) => void,
+  custom: () => void,
+): MenuItem {
   const option = (label: string, days: Weekday[]): MenuItem => ({
     label,
     checked: !!current && isSameDays(current, days),
@@ -50,7 +73,12 @@ export function blockMenu(block: Block, opts: { isToday: boolean; editable: bool
     // A future copy of a repeat: change the repeat itself. A plan block: edit the plan.
     if (routine) {
       return [
-        repeatSubmenu(routine.days, weekday, (days) => (days ? s.updateRoutine(routine.id, { days }) : s.stopRoutine(routine.id)), () => s.setView("plans")),
+        repeatSubmenu(
+          routine.days,
+          weekday,
+          (days) => (days ? s.updateRoutine(routine.id, { days }) : s.stopRoutine(routine.id)),
+          () => s.setView("plans"),
+        ),
         { label: "Edit repeats in Plans", icon: <LayoutTemplate size={I} />, onSelect: () => s.setView("plans") },
       ];
     }
@@ -69,16 +97,25 @@ export function blockMenu(block: Block, opts: { isToday: boolean; editable: bool
         ]
       : []),
     ...(opts.isToday && !planned
-      ? [{
-          label: block.status === "done" ? "Mark not done" : "Restore",
-          icon: <RotateCcw size={I} />,
-          onSelect: () => s.reopenBlock(block.id),
-        }]
+      ? [
+          {
+            label: block.status === "done" ? "Mark not done" : "Restore",
+            icon: <RotateCcw size={I} />,
+            onSelect: () => s.reopenBlock(block.id),
+          },
+        ]
       : []),
     "separator",
     { label: "Open details", icon: <ListChecks size={I} />, onSelect: () => s.openBlock(block.id) },
     ...(block.kind === "commitment"
-      ? [repeatSubmenu(routine?.days, weekday, (days) => s.setRepeat(block.id, days), () => s.openBlock(block.id))]
+      ? [
+          repeatSubmenu(
+            routine?.days,
+            weekday,
+            (days) => s.setRepeat(block.id, days),
+            () => s.openBlock(block.id),
+          ),
+        ]
       : []),
     ...(opts.isToday && planned
       ? [
@@ -96,9 +133,7 @@ export function bandMenu(block: Block, minute: number | null, onAddAt: () => voi
   const s = useApp.getState();
   const plan = s.templates.find((t) => t.id === s.activeTemplateId);
   return [
-    ...(minute !== null
-      ? [{ label: `Add to ${block.title} at ${fmtTime(minute)}`, icon: <Plus size={I} />, onSelect: onAddAt }]
-      : []),
+    ...(minute !== null ? [{ label: `Add to ${block.title} at ${fmtTime(minute)}`, icon: <Plus size={I} />, onSelect: onAddAt }] : []),
     "separator",
     { label: `Edit ${plan?.name ?? "your"} plan`, icon: <LayoutTemplate size={I} />, onSelect: () => s.setView("plans") },
   ];
@@ -117,7 +152,11 @@ export function taskMenu(task: Task): MenuItem[] {
             : []),
         ]
       : []),
-    { label: task.done ? "Mark not done" : "Mark done", icon: task.done ? <Undo2 size={I} /> : <Check size={I} />, onSelect: () => s.toggleTask(task.id) },
+    {
+      label: task.done ? "Mark not done" : "Mark done",
+      icon: task.done ? <Undo2 size={I} /> : <Check size={I} />,
+      onSelect: () => s.toggleTask(task.id),
+    },
     "separator",
     { label: "Delete", icon: <Trash2 size={I} />, danger: true, onSelect: () => s.deleteTask(task.id) },
   ];

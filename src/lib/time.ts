@@ -110,3 +110,13 @@ export function shortDate(iso: string) {
     ...(y !== new Date().getFullYear() ? { year: "numeric" } : {}),
   });
 }
+
+/** Midnight (local) at the start of `d`'s day. */
+export function startOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/** Whole calendar days from `a` to `b` (negative if `b` is earlier). Ignores the time of day. */
+export function daysBetween(a: Date, b: Date) {
+  return Math.round((startOfDay(b).getTime() - startOfDay(a).getTime()) / 86_400_000);
+}

@@ -154,7 +154,8 @@ function ContextCard({ block }: { block: Block }) {
         Nothing to tick here. Just be present.
         {next && (
           <>
-            {" "}I'll remind you {lead} min before <span className="text-text">{next.title}</span> at{" "}
+            {" "}
+            I'll remind you {lead} min before <span className="text-text">{next.title}</span> at{" "}
             <span className="tabular text-text">{fmtTime(next.start)}</span>.
           </>
         )}
@@ -169,12 +170,20 @@ export function SuggestionCard({ minutes, until, large = false }: { minutes: num
   const startTask = useApp((s) => s.startTask);
   const setView = useApp((s) => s.setView);
   const [offset, setOffset] = useState(0);
-  const ranked = useMemo(() => suggest(anytime.filter((t) => !t.dayOffset), minutes), [anytime, minutes]);
+  const ranked = useMemo(
+    () =>
+      suggest(
+        anytime.filter((t) => !t.dayOffset),
+        minutes,
+      ),
+    [anytime, minutes],
+  );
   const pick = ranked.length ? ranked[offset % ranked.length] : undefined;
   const others = ranked.filter((t) => t !== pick).slice(0, 2);
   const area = useArea(pick?.areaId);
 
-  const windowLabel = until !== undefined ? `Free for ${fmtDuration(minutes)} · until ${fmtTime(until)}` : "Free for the rest of the evening";
+  const windowLabel =
+    until !== undefined ? `Free for ${fmtDuration(minutes)} · until ${fmtTime(until)}` : "Free for the rest of the evening";
 
   return (
     <div className={cn("rounded-2xl border border-border bg-surface", large ? "p-6" : "p-4")}>
@@ -227,6 +236,7 @@ export function SuggestionCard({ minutes, until, large = false }: { minutes: num
               <div className="text-[12px] text-muted">Or</div>
               {others.map((t) => (
                 <button
+                  type="button"
                   key={t.id}
                   onClick={() => setOffset(ranked.indexOf(t))}
                   className="flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-left text-[13.5px] hover:bg-surface-2"
@@ -251,14 +261,13 @@ export function NightCard({ quietTo, next }: { quietTo: number; next?: Block }) 
       <div className="flex items-center gap-2 text-[14px] font-semibold">
         <Moon size={16} className="text-accent" /> Quiet hours
       </div>
-      <p className="mt-1 text-[13px] leading-relaxed text-muted">
-        Nothing to do now. Get some rest, your day is already planned.
-      </p>
+      <p className="mt-1 text-[13px] leading-relaxed text-muted">Nothing to do now. Get some rest, your day is already planned.</p>
       <p className="tabular mt-3 text-[12.5px] text-muted">
         Reminders resume at <span className="text-text">{fmtTime(quietTo)}</span>
         {next && (
           <>
-            {" "}· First up: <span className="text-text">{next.title}</span> at <span className="text-text">{fmtTime(next.start)}</span>
+            {" "}
+            · First up: <span className="text-text">{next.title}</span> at <span className="text-text">{fmtTime(next.start)}</span>
           </>
         )}
       </p>
@@ -303,15 +312,23 @@ function TaskRow({ task }: { task: Task }) {
   const [menu, setMenu] = useState(false);
   const row = useRef<HTMLDivElement>(null);
   useDismiss(menu, () => setMenu(false), [row]);
-  const meta = task.due ? `Due ${task.due.toLowerCase()}` : task.type === "habit" ? "Daily" : task.duration ? fmtDuration(task.duration) : "";
+  const meta = task.due
+    ? `Due ${task.due.toLowerCase()}`
+    : task.type === "habit"
+      ? "Daily"
+      : task.duration
+        ? fmtDuration(task.duration)
+        : "";
 
   return (
     <div ref={row} className="relative">
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: the right-click menu is a shortcut; each action is also a button in the row */}
       <div
         className="group flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-surface"
         onContextMenu={(e) => !wantsNativeMenu(e.nativeEvent) && showMenu(e, taskMenu(task))}
       >
         <button
+          type="button"
           onClick={() => toggle(task.id)}
           aria-label={task.done ? "Mark not done" : "Mark done"}
           className={cn(
@@ -328,6 +345,7 @@ function TaskRow({ task }: { task: Task }) {
         )}
         {!task.done && (
           <button
+            type="button"
             onClick={() => setMenu(!menu)}
             title="Put it on the timeline"
             className={cn(
@@ -339,6 +357,7 @@ function TaskRow({ task }: { task: Task }) {
           </button>
         )}
         <button
+          type="button"
           onClick={() => deleteTask(task.id)}
           aria-label="Delete"
           title="Delete"
@@ -393,7 +412,11 @@ function ScheduleMenu({ task, onClose }: { task: Task; onClose: () => void }) {
 
 function MenuItem({ label, time, onClick }: { label: string; time: number; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="flex w-full items-center rounded-lg px-1.5 py-1.5 text-left text-[13px] hover:bg-surface-2">
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center rounded-lg px-1.5 py-1.5 text-left text-[13px] hover:bg-surface-2"
+    >
       {label}
       <span className="tabular ml-auto text-muted">{fmtTime(time)}</span>
     </button>
@@ -436,7 +459,7 @@ export function Missed({ blocks }: { blocks: Block[] }) {
   const [open, setOpen] = useState(blocks.length <= 2);
   return (
     <section className="space-y-2">
-      <button onClick={() => setOpen(!open)} className="flex w-full items-center gap-2 text-left">
+      <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-center gap-2 text-left">
         <span className="size-1.5 rounded-full bg-attention" />
         <span className="text-[13px] font-medium">
           {blocks.length} {blocks.length === 1 ? "thing needs" : "things need"} a new spot

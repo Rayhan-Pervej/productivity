@@ -10,11 +10,7 @@ const APP_NAME: string = tauriConf.productName;
 
 // Tauri expects a fixed port and no clearing of the terminal.
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    { name: "app-name", transformIndexHtml: (html) => html.replaceAll("%APP_NAME%", APP_NAME) },
-  ],
+  plugins: [react(), tailwindcss(), { name: "app-name", transformIndexHtml: (html) => html.replaceAll("%APP_NAME%", APP_NAME) }],
   define: { __APP_NAME__: JSON.stringify(APP_NAME) },
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },

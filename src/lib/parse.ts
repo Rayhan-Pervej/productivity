@@ -1,7 +1,8 @@
+// biome-ignore-all lint/suspicious/noAssignInExpressions: `if ((m = take(RE)))` matches and consumes in one step; take() changes the input, so it can't be called twice
 // Natural-language quick-add parser (v0.1 subset, docs/04-v0.1-spec.md §4).
 // Lives in TS for the UI prototype; moves to the Rust core so all surfaces share it.
 import type { Area, TaskType, Weekday } from "@/domain/types";
-import { dayLabel, isoDay } from "@/lib/time";
+import { dayLabel, daysBetween, isoDay, startOfDay } from "@/lib/time";
 import { EVERY_DAY, WEEKDAYS as WEEKDAY_SET, WEEKENDS as WEEKEND_SET, normalizeDays } from "@/lib/repeat";
 
 export interface Parsed {
@@ -24,8 +25,15 @@ export interface Parsed {
 
 const DEFAULT_DURATION = 30;
 const DUE_DAYS: Record<string, string> = {
-  mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday",
-  fri: "Friday", sat: "Saturday", sun: "Sunday", today: "Today", tomorrow: "Tomorrow",
+  mon: "Monday",
+  tue: "Tuesday",
+  wed: "Wednesday",
+  thu: "Thursday",
+  fri: "Friday",
+  sat: "Saturday",
+  sun: "Sunday",
+  today: "Today",
+  tomorrow: "Tomorrow",
 };
 
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
@@ -45,9 +53,6 @@ const UNTIL_DATE_RE = new RegExp(
   String.raw`\s(?:till|until|untill|through|thru|to)\s+(?:(\d{1,2})(?:st|nd|rd|th)?\s+${MONTH}|${MONTH}\s+(\d{1,2})(?:st|nd|rd|th)?)\b`,
   "i",
 );
-
-const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-const daysBetween = (a: Date, b: Date) => Math.round((startOfDay(b).getTime() - startOfDay(a).getTime()) / 86_400_000);
 
 export function parseQuickAdd(input: string, areas: Area[], today: Date = new Date()): Parsed {
   let text = ` ${input} `;
@@ -92,14 +97,14 @@ export function parseQuickAdd(input: string, areas: Area[], today: Date = new Da
     // "30 nov" fills groups 1–2, "nov 30" fills groups 3–4.
     const num = u[1] ?? u[4];
     const mon = u[2] ?? u[3];
-    const date = new Date(today.getFullYear(), MONTHS.indexOf(mon.slice(0, 3).toLowerCase()), parseInt(num));
+    const date = new Date(today.getFullYear(), MONTHS.indexOf(mon.slice(0, 3).toLowerCase()), parseInt(num, 10));
     if (date < startOfDay(today)) date.setFullYear(date.getFullYear() + 1);
     until = isoDay(date);
   } else if ((u = take(/\s(?:till|until|untill|through|thru)\s+(tomorrow|today)\b/i))) {
     until = addDays(u[1].toLowerCase() === "tomorrow" ? 1 : 0);
   } else if ((u = take(/\sfor\s+(\d{1,2}|a|one|two|three|four)\s+(days?|weeks?)\b/i))) {
     const words: Record<string, number> = { a: 1, one: 1, two: 2, three: 3, four: 4 };
-    const n = words[u[1].toLowerCase()] ?? parseInt(u[1]);
+    const n = words[u[1].toLowerCase()] ?? parseInt(u[1], 10);
     until = addDays((u[2].toLowerCase().startsWith("week") ? n * 7 : n) - 1);
   }
 
@@ -110,11 +115,11 @@ export function parseQuickAdd(input: string, areas: Area[], today: Date = new Da
   else if (take(/\s(tomorrow|tmrw|tmr)\b/i)) day = 1;
   else if ((m = take(/\sin\s+(\d{1,2}|a|one|two|three)\s+(days?|weeks?)\b/i))) {
     const words: Record<string, number> = { a: 1, one: 1, two: 2, three: 3 };
-    const n = words[m[1].toLowerCase()] ?? parseInt(m[1]);
+    const n = words[m[1].toLowerCase()] ?? parseInt(m[1], 10);
     day = m[2].toLowerCase().startsWith("week") ? n * 7 : n;
   } else if ((m = take(DAY_MONTH_RE) ?? take(MONTH_DAY_RE))) {
     const [num, mon] = /^\d/.test(m[1]) ? [m[1], m[2]] : [m[2], m[1]];
-    const date = new Date(today.getFullYear(), MONTHS.indexOf(mon.slice(0, 3).toLowerCase()), parseInt(num));
+    const date = new Date(today.getFullYear(), MONTHS.indexOf(mon.slice(0, 3).toLowerCase()), parseInt(num, 10));
     if (date < startOfDay(today)) date.setFullYear(date.getFullYear() + 1);
     day = daysBetween(today, date);
   } else if ((m = take(WEEKDAY_RE))) {
@@ -130,10 +135,10 @@ export function parseQuickAdd(input: string, areas: Area[], today: Date = new Da
   const hours = take(/\s(\d+(?:\.\d+)?)\s*h(?:ours?|rs?)?(?:\s*(\d+)\s*m(?:in)?)?\b/i);
   const mins = hours ? null : take(/\s(\d+)\s*m(?:in|ins|inutes?)?\b/i);
   if (hours) {
-    duration = Math.round(parseFloat(hours[1]) * 60) + (hours[2] ? parseInt(hours[2]) : 0);
+    duration = Math.round(parseFloat(hours[1]) * 60) + (hours[2] ? parseInt(hours[2], 10) : 0);
     durationExplicit = true;
   } else if (mins) {
-    duration = parseInt(mins[1]);
+    duration = parseInt(mins[1], 10);
     durationExplicit = true;
   }
 
@@ -141,18 +146,20 @@ export function parseQuickAdd(input: string, areas: Area[], today: Date = new Da
   let start: number | undefined;
   const ampm = take(/\s(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
   if (ampm) {
-    let hh = parseInt(ampm[1]) % 12;
+    let hh = parseInt(ampm[1], 10) % 12;
     if (ampm[3].toLowerCase() === "pm") hh += 12;
-    start = hh * 60 + (ampm[2] ? parseInt(ampm[2]) : 0);
+    start = hh * 60 + (ampm[2] ? parseInt(ampm[2], 10) : 0);
   } else {
     const clock = take(/\s(?:at\s+)?([01]?\d|2[0-3]):([0-5]\d)\b/);
-    if (clock) start = parseInt(clock[1]) * 60 + parseInt(clock[2]);
+    if (clock) start = parseInt(clock[1], 10) * 60 + parseInt(clock[2], 10);
   }
 
   let type: TaskType;
   if (due) type = "deadline";
-  else if (repeat && start !== undefined) type = "routine"; // "standup 8:30am every weekday"
-  else if (repeat) type = "habit"; // "read every day" (no time)
+  else if (repeat && start !== undefined)
+    type = "routine"; // "standup 8:30am every weekday"
+  else if (repeat)
+    type = "habit"; // "read every day" (no time)
   else if (start !== undefined) type = "fixed";
   else if (tonight || durationExplicit || day > 0) type = "flexible";
   else type = "backlog";
@@ -169,7 +176,20 @@ export function parseQuickAdd(input: string, areas: Area[], today: Date = new Da
   }
   const title = cleaned ? cleaned[0].toUpperCase() + cleaned.slice(1) : "";
 
-  return { title, areaId, day, dayLabel: dayLabel(day, today), start, duration, durationExplicit, type, due, tonight, repeat, until: repeat ? until : undefined };
+  return {
+    title,
+    areaId,
+    day,
+    dayLabel: dayLabel(day, today),
+    start,
+    duration,
+    durationExplicit,
+    type,
+    due,
+    tonight,
+    repeat,
+    until: repeat ? until : undefined,
+  };
 }
 
 export const TYPE_LABEL: Record<TaskType, string> = {

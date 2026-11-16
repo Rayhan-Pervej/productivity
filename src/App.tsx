@@ -12,13 +12,17 @@ import { currentCommitment } from "@/lib/day";
 import { NavRail, TitleBar } from "@/components/layout";
 import { TodayView } from "@/features/today/TodayView";
 import { FocusView } from "@/features/focus/FocusView";
-import { InboxView, PlansView, SettingsView } from "@/features/other/OtherViews";
+import { InboxView } from "@/features/inbox/InboxView";
+import { PlansView } from "@/features/plans/PlansView";
+import { SettingsView } from "@/features/settings/SettingsView";
 import { Onboarding } from "@/features/onboarding/Onboarding";
 import { QuickAdd } from "@/features/overlays/QuickAdd";
 import { BlockDetails } from "@/features/overlays/BlockDetails";
 import { CommandPalette } from "@/features/overlays/CommandPalette";
 import { CatchUp, EveningReview, MorningBriefing } from "@/features/overlays/Rituals";
-import { DevPanel, NotificationPreview, Toaster, TrayPopover } from "@/features/overlays/DesktopSurfaces";
+import { Toaster } from "@/features/overlays/Toaster";
+import { NotificationPreview, TrayPopover } from "@/features/dev/BrowserPreviews";
+import { DevPanel } from "@/features/dev/DevPanel";
 
 export default function App() {
   const view = useApp((s) => s.view);
@@ -64,10 +68,26 @@ export default function App() {
                 transition={{ duration: 0.12 }}
               >
                 {view === "today" && <TodayView />}
-                {view === "focus" && <div className="flex-1"><FocusView /></div>}
-                {view === "inbox" && <div className="flex-1"><InboxView /></div>}
-                {view === "plans" && <div className="flex-1"><PlansView /></div>}
-                {view === "settings" && <div className="flex-1"><SettingsView /></div>}
+                {view === "focus" && (
+                  <div className="flex-1">
+                    <FocusView />
+                  </div>
+                )}
+                {view === "inbox" && (
+                  <div className="flex-1">
+                    <InboxView />
+                  </div>
+                )}
+                {view === "plans" && (
+                  <div className="flex-1">
+                    <PlansView />
+                  </div>
+                )}
+                {view === "settings" && (
+                  <div className="flex-1">
+                    <SettingsView />
+                  </div>
+                )}
               </motion.div>
             </AnimatePresence>
           </main>
@@ -125,8 +145,7 @@ function useTheme() {
   const theme = useApp((s) => s.theme);
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const apply = () =>
-      document.documentElement.classList.toggle("dark", theme === "dark" || (theme === "system" && media.matches));
+    const apply = () => document.documentElement.classList.toggle("dark", theme === "dark" || (theme === "system" && media.matches));
     apply();
     media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);

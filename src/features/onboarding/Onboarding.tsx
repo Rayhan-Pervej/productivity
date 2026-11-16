@@ -1,4 +1,5 @@
 // First run: docs/04-v0.1-spec.md §3.6. Goal: a real plan for *your* day in about a minute.
+import { StepDots } from "@/components/StepDots";
 import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -32,9 +33,7 @@ export function Onboarding() {
   const complete = useApp((s) => s.completeOnboarding);
   const current = useApp((s) => s.settings);
 
-  const [step, setStep] = useState(() =>
-    import.meta.env.DEV ? Number(new URLSearchParams(location.search).get("obstep") ?? 0) : 0,
-  );
+  const [step, setStep] = useState(() => (import.meta.env.DEV ? Number(new URLSearchParams(location.search).get("obstep") ?? 0) : 0));
   const [name, setName] = useState(current.name);
   const [office, setOffice] = useState({ on: true, from: h(9), to: h(17) });
   const [personal, setPersonal] = useState({ on: true, from: h(18), to: h(20, 30) });
@@ -61,11 +60,9 @@ export function Onboarding() {
 
   const toggle = (a: Activity) =>
     setPicked((p) => (p.some((x) => x.areaId === a.areaId) ? p.filter((x) => x.areaId !== a.areaId) : [...p, a]));
-  const setDuration = (areaId: string, duration: number) =>
-    setPicked((p) => p.map((x) => (x.areaId === areaId ? { ...x, duration } : x)));
+  const setDuration = (areaId: string, duration: number) => setPicked((p) => p.map((x) => (x.areaId === areaId ? { ...x, duration } : x)));
 
-  const finish = () =>
-    complete({ ...current, name: name.trim(), leadMinutes: lead, reviewAt }, plan);
+  const finish = () => complete({ ...current, name: name.trim(), leadMinutes: lead, reviewAt }, plan);
 
   const steps = [
     {
@@ -96,7 +93,13 @@ export function Onboarding() {
             label="Office / day job"
             color={areas.find((a) => a.id === "office")?.color}
           >
-            <TimeSelect label="Office from" value={office.from} onChange={(from) => setOffice({ ...office, from })} from={h(5)} to={h(14)} />
+            <TimeSelect
+              label="Office from"
+              value={office.from}
+              onChange={(from) => setOffice({ ...office, from })}
+              from={h(5)}
+              to={h(14)}
+            />
             <span className="text-muted">–</span>
             <TimeSelect label="Office to" value={office.to} onChange={(to) => setOffice({ ...office, to })} from={h(12)} to={h(22)} />
           </Row>
@@ -106,9 +109,21 @@ export function Onboarding() {
             label="Time for yourself after"
             color={areas.find((a) => a.id === "personal")?.color}
           >
-            <TimeSelect label="Personal from" value={personal.from} onChange={(from) => setPersonal({ ...personal, from })} from={h(12)} to={h(22)} />
+            <TimeSelect
+              label="Personal from"
+              value={personal.from}
+              onChange={(from) => setPersonal({ ...personal, from })}
+              from={h(12)}
+              to={h(22)}
+            />
             <span className="text-muted">–</span>
-            <TimeSelect label="Personal to" value={personal.to} onChange={(to) => setPersonal({ ...personal, to })} from={h(14)} to={h(23)} />
+            <TimeSelect
+              label="Personal to"
+              value={personal.to}
+              onChange={(to) => setPersonal({ ...personal, to })}
+              from={h(14)}
+              to={h(23)}
+            />
           </Row>
         </div>
       ),
@@ -137,7 +152,7 @@ export function Onboarding() {
                   )}
                   style={sel ? { background: tint(color, 12) } : undefined}
                 >
-                  <button onClick={() => toggle(a)} className="flex flex-1 items-center gap-3 text-left">
+                  <button type="button" onClick={() => toggle(a)} className="flex flex-1 items-center gap-3 text-left">
                     <span
                       className="tabular grid size-6 place-items-center rounded-full border text-[11px] font-semibold transition-all"
                       style={sel ? { background: color, borderColor: color, color: "white" } : { borderColor: "var(--border)" }}
@@ -216,11 +231,7 @@ export function Onboarding() {
       <div className="w-full max-w-[520px]">
         <div className="mb-8 flex items-center gap-2 text-accent">
           <Sparkles size={18} />
-          <div className="flex gap-1.5">
-            {steps.map((_, i) => (
-              <span key={i} className={cn("h-1.5 rounded-full transition-all duration-300", i === step ? "w-6 bg-accent" : i < step ? "w-1.5 bg-accent/50" : "w-1.5 bg-border")} />
-            ))}
-          </div>
+          <StepDots count={steps.length} current={step} />
         </div>
 
         <AnimatePresence mode="wait">
@@ -255,8 +266,18 @@ export function Onboarding() {
 }
 
 function Row({
-  on, setOn, label, color, children,
-}: { on: boolean; setOn: (v: boolean) => void; label: string; color?: string; children: React.ReactNode }) {
+  on,
+  setOn,
+  label,
+  color,
+  children,
+}: {
+  on: boolean;
+  setOn: (v: boolean) => void;
+  label: string;
+  color?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className={cn("flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3", !on && "opacity-60")}>
       <Switch checked={on} onChange={setOn} label={label} />

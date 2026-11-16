@@ -15,12 +15,11 @@ export function WeekdayPicker({
   presets?: boolean;
   className?: string;
 }) {
-  const toggle = (d: Weekday) =>
-    onChange(normalizeDays(value.includes(d) ? value.filter((x) => x !== d) : [...value, d]));
+  const toggle = (d: Weekday) => onChange(normalizeDays(value.includes(d) ? value.filter((x) => x !== d) : [...value, d]));
 
   return (
     <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
-      <div role="group" aria-label="Repeat on" className="flex gap-1">
+      <fieldset aria-label="Repeat on" className="flex gap-1">
         {WEEK_ORDER.map((d) => {
           const on = value.includes(d);
           return (
@@ -39,14 +38,16 @@ export function WeekdayPicker({
             </button>
           );
         })}
-      </div>
+      </fieldset>
       {presets && (
         <div className="flex gap-1">
-          {([
-            ["Every day", EVERY_DAY],
-            ["Weekdays", WEEKDAYS],
-            ["Weekends", WEEKENDS],
-          ] as const).map(([label, days]) => (
+          {(
+            [
+              ["Every day", EVERY_DAY],
+              ["Weekdays", WEEKDAYS],
+              ["Weekends", WEEKENDS],
+            ] as const
+          ).map(([label, days]) => (
             <button
               key={label}
               type="button"

@@ -30,13 +30,23 @@ pub fn play(name: &str) {
         // The sound Windows uses for notifications (what users set in Sound settings).
         "default" => {
             let alias: Vec<u16> = "Notification.Default\0".encode_utf16().collect();
-            unsafe { PlaySoundW(alias.as_ptr(), std::ptr::null_mut(), SND_ALIAS | SND_ASYNC | SND_NODEFAULT) };
+            unsafe {
+                PlaySoundW(
+                    alias.as_ptr(),
+                    std::ptr::null_mut(),
+                    SND_ALIAS | SND_ASYNC | SND_NODEFAULT,
+                )
+            };
         }
         other => {
             if let Some(wav) = bytes(other) {
                 // SND_MEMORY reads the WAV straight from the embedded bytes (they live for the whole program).
                 unsafe {
-                    PlaySoundW(wav.as_ptr().cast(), std::ptr::null_mut(), SND_MEMORY | SND_ASYNC | SND_NODEFAULT)
+                    PlaySoundW(
+                        wav.as_ptr().cast(),
+                        std::ptr::null_mut(),
+                        SND_MEMORY | SND_ASYNC | SND_NODEFAULT,
+                    )
                 };
             }
         }

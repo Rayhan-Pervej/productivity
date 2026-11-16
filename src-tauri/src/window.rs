@@ -33,7 +33,7 @@ pub fn show_main(app: &AppHandle, intent: Option<Intent>) {
         .decorations(false)
         .shadow(true)
         .inner_size(1120.0, 720.0)
-        .min_inner_size(820.0, 560.0)
+        .min_inner_size(720.0, 520.0)
         .center()
         // Hidden until the page has drawn its first real frame (see main.tsx), so you never see a
         // blank white WebView while it loads.

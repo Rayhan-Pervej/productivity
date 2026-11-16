@@ -11,47 +11,70 @@ import { showMenu, wantsNativeMenu } from "@/components/ContextMenu";
 import { taskMenu } from "@/features/menus";
 import type { Block, Task } from "@/domain/types";
 
-export function ContextPanel() {
+/** Today's lists, shared by the side panel (wide windows) and the Now strip (narrower ones). */
+export function useTodayLists() {
   const blocks = useApp((s) => s.blocks);
   const now = useApp((s) => s.now);
   const allTasks = useApp((s) => s.anytime);
-  const anytime = useMemo(() => allTasks.filter((t) => !t.dayOffset), [allTasks]);
-  const next = useMemo(() => nextCommitment(blocks, now), [blocks, now]);
-  const missed = useMemo(() => missedBlocks(blocks, now), [blocks, now]);
-  const pending = anytime.filter((t) => !t.done);
-  const finished = anytime.filter((t) => t.done);
+  return useMemo(() => {
+    const anytime = allTasks.filter((t) => !t.dayOffset);
+    return {
+      next: nextCommitment(blocks, now),
+      pending: anytime.filter((t) => !t.done),
+      finished: anytime.filter((t) => t.done),
+      missed: missedBlocks(blocks, now),
+    };
+  }, [blocks, now, allTasks]);
+}
 
+/** Beside the timeline on wide windows. On narrower ones the same sections live in the Now strip. */
+export function ContextPanel() {
+  const { next, missed } = useTodayLists();
   return (
-    <aside className="flex w-[324px] shrink-0 flex-col gap-6 overflow-y-auto border-l border-border p-5 max-[1000px]:hidden">
-      <section className="space-y-2.5">
-        <SectionLabel>Now</SectionLabel>
-        <NowCard />
-      </section>
-
-      {next && (
-        <section className="space-y-2">
-          <SectionLabel>Next · {fmtTime(next.start)}</SectionLabel>
-          <BlockLine block={next} />
-        </section>
-      )}
-
-      <section className="space-y-1">
-        <SectionLabel className="mb-1.5">Anytime today</SectionLabel>
-        {pending.length === 0 && <p className="px-1.5 text-[13px] text-muted">All clear. Nice.</p>}
-        {pending.map((t) => (
-          <TaskRow key={t.id} task={t} />
-        ))}
-        {finished.length > 0 && (
-          <div className="pt-1 opacity-70">
-            {finished.map((t) => (
-              <TaskRow key={t.id} task={t} />
-            ))}
-          </div>
-        )}
-      </section>
-
+    <aside className="flex w-[324px] shrink-0 flex-col gap-6 overflow-y-auto border-l border-border p-5">
+      <NowSection />
+      {next && <NextSection block={next} />}
+      <AnytimeSection />
       {missed.length > 0 && <Missed blocks={missed} />}
     </aside>
+  );
+}
+
+export function NowSection({ label = true }: { label?: boolean }) {
+  return (
+    <section className="space-y-2.5">
+      {label && <SectionLabel>Now</SectionLabel>}
+      <NowCard />
+    </section>
+  );
+}
+
+function NextSection({ block }: { block: Block }) {
+  return (
+    <section className="space-y-2">
+      <SectionLabel>Next · {fmtTime(block.start)}</SectionLabel>
+      <BlockLine block={block} />
+    </section>
+  );
+}
+
+export function AnytimeSection() {
+  const { pending, finished } = useTodayLists();
+  return (
+    <section className="space-y-1">
+      <SectionLabel className="mb-1.5">Anytime today</SectionLabel>
+      {pending.length === 0 && <p className="px-1.5 text-[13px] text-muted">All clear. Nice.</p>}
+      {pending.map((t) => (
+        <TaskRow key={t.id} task={t} />
+      ))}
+      {finished.length > 0 && (
+        <div className="pt-1 opacity-70">
+          {finished.map((t) => (
+            <TaskRow key={t.id} task={t} />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -409,7 +432,7 @@ export function TriageCard({ block, actions = TRIAGE }: { block: Block; actions?
   );
 }
 
-function Missed({ blocks }: { blocks: Block[] }) {
+export function Missed({ blocks }: { blocks: Block[] }) {
   const [open, setOpen] = useState(blocks.length <= 2);
   return (
     <section className="space-y-2">

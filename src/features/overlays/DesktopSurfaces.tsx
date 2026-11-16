@@ -259,7 +259,7 @@ export function DevPanel() {
   ];
 
   return (
-    <div className="fixed bottom-4 left-[88px] z-[55] max-[820px]:left-4">
+    <div className="fixed bottom-4 left-[88px] z-[55] max-[900px]:left-[68px]">
       <AnimatePresence>
         {open && (
           <motion.div {...pop} className={cn(panel, "relative bottom-2 w-[300px] p-4")}>

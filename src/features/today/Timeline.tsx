@@ -40,6 +40,10 @@ function neededHeight(b: Block) {
 
 /** Width kept for a background band's label when tasks sit on top of it. */
 const NEST_INSET = 148;
+/** On a narrow timeline the band's label column shrinks, so tasks keep their width. */
+const NEST_INSET_NARROW = 116;
+/** Timeline width (px) below which it counts as narrow. Matches the `@max-[560px]` query below. */
+const NARROW_TIMELINE = 560;
 
 /**
  * Height for tracked time: the first hour at full scale (72 px), longer stretches grow more slowly,
@@ -150,6 +154,24 @@ export function Timeline({
     // Only when the view opens or switches day.
   }, [readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // When the timeline gets shorter (e.g. the Now strip unfolds), keep "now" in view.
+  const nowAt = useRef(0);
+  nowAt.current = scale.map(now);
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el || readOnly) return;
+    let lastHeight = el.clientHeight;
+    const observer = new ResizeObserver(() => {
+      if (el.clientHeight === lastHeight) return;
+      lastHeight = el.clientHeight;
+      const y = nowAt.current;
+      const visible = y >= el.scrollTop + 16 && y <= el.scrollTop + el.clientHeight - 40;
+      if (!visible) el.scrollTo({ top: Math.max(0, y - el.clientHeight / 3), behavior: "smooth" });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [readOnly]);
+
   // Time labels at segment boundaries, skipping ones that would collide.
   const labels: { m: number; y: number }[] = [];
   for (const s of scale.segs) {
@@ -171,7 +193,9 @@ export function Timeline({
           </div>
         ))}
 
-        <div className="absolute top-0 right-0 bottom-0 left-14 z-10" inert={history}>
+        <div className="@container absolute top-0 right-0 bottom-0 left-14 z-10" inert={history}>
+          {/* --nest: width of a background band's label column (tasks float to its right). */}
+          <div className="absolute inset-0 [--nest:148px] @max-[560px]:[--nest:116px]">
           {scale.segs
             .filter((s) => !history && s.kind === "free" && (readOnly || s.to > now) && !(s.to === scale.end && s.to - s.from <= 60))
             .map((s) => {
@@ -213,6 +237,7 @@ export function Timeline({
               map={scale.map}
             />
           ))}
+          </div>
         </div>
 
         {showNow && (
@@ -301,7 +326,8 @@ function TimelineBlock({
   }, [block.status]);
 
   // Tracked blocks inside a background band float on top of it, leaving the band's label visible.
-  const base = nested ? 8 + NEST_INSET : 8;
+  // --nest (set on the timeline) adapts to its width.
+  const base = nested ? "(8px + var(--nest))" : "8px";
   const rightGap = nested ? 6 : 0;
   const cols = lane?.cols ?? 1;
   const col = lane?.col ?? 0;
@@ -309,8 +335,8 @@ function TimelineBlock({
     block.kind === "context"
       ? { left: 8, width: "calc(100% - 8px)" }
       : {
-          left: `calc(${base}px + (100% - ${base + rightGap}px) * ${col / cols})`,
-          width: `calc((100% - ${base + rightGap}px) / ${cols} - ${cols > 1 ? 4 : 0}px)`,
+          left: `calc(${base} + (100% - ${base} - ${rightGap}px) * ${col / cols})`,
+          width: `calc((100% - ${base} - ${rightGap}px) / ${cols} - ${cols > 1 ? 4 : 0}px)`,
         };
 
   if (block.kind === "context") {
@@ -349,7 +375,7 @@ function TimelineBlock({
       }}
       title={editable ? "Open details · edit, add steps" : "From your plan. Edit it in Plans."}
       className={cn(
-        "group absolute z-[1] overflow-hidden rounded-xl transition-all duration-200",
+        "@container group absolute z-[1] overflow-hidden rounded-xl transition-all duration-200",
         editable ? "cursor-pointer hover:-translate-y-px hover:shadow-soft" : "cursor-default",
         celebrate && "animate-[done-pop_650ms_ease-out]",
         active && "z-10 shadow-soft ring-2",
@@ -374,7 +400,7 @@ function TimelineBlock({
               <Check size={14} className="shrink-0 text-success" />
             </motion.span>
           )}
-          <span className="text-[11.5px] font-medium" style={{ color }}>
+          <span className="shrink-0 text-[11.5px] font-medium @max-[400px]:hidden" style={{ color }}>
             {area?.name}
           </span>
           <span className={cn("truncate text-[13.5px] font-medium", (missed || skipped) && "text-muted", skipped && "line-through")}>
@@ -382,14 +408,19 @@ function TimelineBlock({
           </span>
           {active && <span className="rounded-full bg-accent px-1.5 py-px text-[10px] font-semibold text-accent-fg">now</span>}
           {block.routineId && (
-            <span title="Repeats" className="shrink-0 text-muted">
+            <span title="Repeats" className="shrink-0 text-muted @max-[280px]:hidden">
               <Repeat size={12} />
             </span>
           )}
           {block.subtasks.length > 0 && <StepProgress done={block.subtasks.filter((t) => t.done).length} total={block.subtasks.length} color={color} />}
-          {missed && <span className="shrink-0 text-[11px] text-attention">didn't happen</span>}
-          <span className="tabular ml-auto shrink-0 pl-2 text-[11.5px] text-muted">
-            {fmtTime(block.start)} – {fmtTime(block.end)}
+          {missed && <span className="shrink-0 text-[11px] text-attention @max-[320px]:hidden">didn't happen</span>}
+          {/* Narrow block: just the start time, so the title keeps its room. */}
+          <span
+            className="tabular ml-auto shrink-0 pl-2 text-[11.5px] text-muted"
+            title={`${fmtTime(block.start)} – ${fmtTime(block.end)}`}
+          >
+            <span className="@max-[360px]:hidden">{fmtTime(block.start)} – {fmtTime(block.end)}</span>
+            <span className="hidden @max-[360px]:inline">{fmtTime(block.start)}</span>
           </span>
         </div>
 
@@ -480,12 +511,12 @@ function BackgroundBand({
     >
       {hosting ? (
         <>
-          <span className="flex max-w-[132px] items-center gap-2">
+          <span className="flex max-w-[calc(var(--nest)-16px)] items-center gap-2">
             <span className="size-1.5 shrink-0 rounded-full" style={{ background: color }} />
             <span className="truncate text-[13px] font-medium">{block.title}</span>
             {past && <Check size={13} className="shrink-0 text-muted" />}
           </span>
-          <span className="tabular pl-3.5 text-[11px] text-muted">
+          <span className="tabular max-w-[calc(var(--nest)-16px)] pl-3.5 text-[11px] text-muted">
             {fmtTime(block.start)} – {fmtTime(block.end)}
           </span>
           {active && <span className="pl-3.5 text-[11px] text-accent">now</span>}
@@ -521,7 +552,7 @@ function HoverGuide({
   const pillTop = clampTo(lineY - PILL_H / 2, 2, bandHeight - PILL_H - 2);
   // Tasks float on top of a hosting band, so keep the pill in the band's free label column there.
   const pillLeft = hosting
-    ? clampTo(hover.x - PILL_W / 2, 4, NEST_INSET - PILL_W - 4)
+    ? clampTo(hover.x - PILL_W / 2, 4, (hover.width + 8 <= NARROW_TIMELINE ? NEST_INSET_NARROW : NEST_INSET) - PILL_W - 4)
     : clampTo(hover.x + 14, 4, hover.width - PILL_W - 4);
   return (
     <>

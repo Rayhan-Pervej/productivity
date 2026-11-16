@@ -28,10 +28,10 @@ export function TitleBar() {
       </span>
 
       <div
-        className="pointer-events-none ml-auto flex items-center gap-3 max-[760px]:hidden"
+        className="pointer-events-none ml-auto flex shrink-0 items-center gap-3"
         title="Progress counts what you chose to do. Background blocks don't count."
       >
-        <div className="h-1.5 w-28 overflow-hidden rounded-full bg-surface-2">
+        <div className="h-1.5 w-28 overflow-hidden rounded-full bg-surface-2 max-[900px]:w-14">
           <div
             className="h-full rounded-full bg-accent transition-[width] duration-700 ease-out"
             style={{ width: `${ratio * 100}%` }}
@@ -39,15 +39,15 @@ export function TitleBar() {
         </div>
         <span className="tabular text-[12px] whitespace-nowrap text-muted">
           {total ? `${done} of ${total} done` : "Nothing tracked today"}
-          {steps > 0 && <span className="text-muted/80"> · {stepsDone}/{steps} steps</span>}
+          {steps > 0 && <span className="text-muted/80 max-[900px]:hidden"> · {stepsDone}/{steps} steps</span>}
         </span>
       </div>
 
       <button
         onClick={() => open("palette")}
-        className="flex h-7 shrink-0 items-center gap-2 rounded-lg border border-border bg-surface px-2.5 text-[12px] text-muted transition-colors hover:text-text max-[760px]:ml-auto"
+        className="flex h-7 shrink-0 items-center gap-2 rounded-lg border border-border bg-surface px-2.5 text-[12px] text-muted transition-colors hover:text-text"
       >
-        Search or run…
+        <span className="max-[900px]:hidden">Search or run…</span>
         <Kbd>Ctrl K</Kbd>
       </button>
       <WindowControls />
@@ -73,12 +73,12 @@ export function NavRail() {
       onClick={() => setView(v)}
       title={`${label} (${hint})`}
       className={cn(
-        "group relative flex w-14 flex-col items-center gap-1 rounded-xl py-2 text-[11px] transition-colors",
+        "group relative flex w-14 flex-col items-center gap-1 rounded-xl py-2 text-[11px] transition-colors max-[900px]:w-11 max-[900px]:py-2.5",
         view === v ? "bg-surface text-text shadow-soft" : "text-muted hover:bg-surface/60 hover:text-text",
       )}
     >
       <Icon size={20} strokeWidth={1.5} className={view === v ? "text-accent" : ""} />
-      {label}
+      <span className="max-[900px]:sr-only">{label}</span>
       {!!badge && (
         <span className="tabular absolute top-1 right-2 grid h-4 min-w-4 place-items-center rounded-full bg-surface-2 px-1 text-[10px] font-semibold text-muted">
           {badge}
@@ -88,7 +88,7 @@ export function NavRail() {
   );
 
   return (
-    <nav className="flex w-[72px] shrink-0 flex-col items-center gap-1 border-r border-border py-3">
+    <nav className="flex w-[72px] shrink-0 flex-col items-center gap-1 border-r border-border py-3 max-[900px]:w-14">
       {NAV.map((n) => item(n.view, n.label, n.icon, n.key, n.view === "inbox" ? inboxCount : undefined))}
       <div className="mt-auto">{item("settings", "Settings", Settings, ",")}</div>
     </nav>

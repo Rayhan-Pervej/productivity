@@ -107,4 +107,8 @@ export interface Settings {
   quietFrom: number;
   quietTo: number;
   timeFormat: "12h" | "24h";
+  /** Reminder sound id (see lib/sounds.ts): one of ours, "default" (Windows) or "none". */
+  notificationSound: string;
+  /** A soft sound when you mark something done. */
+  completionSound: boolean;
 }

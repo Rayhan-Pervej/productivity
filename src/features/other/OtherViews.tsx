@@ -9,7 +9,7 @@ import { cn, tint } from "@/lib/utils";
 import { Button, Kbd, SectionLabel, Switch, TimeSelect } from "@/components/ui";
 import { AreaSelect } from "@/components/AreaSelect";
 import { RoutinesSection } from "./RoutinesSection";
-import { ClockControl, LeadMinutesControl, SettingRow, SettingsGroup, ThemeControl } from "@/components/settings";
+import { ClockControl, LeadMinutesControl, SettingRow, SettingsGroup, SoundControl, ThemeControl } from "@/components/settings";
 
 function Page({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
@@ -252,6 +252,16 @@ export function SettingsView() {
         <SettingRow label="Remind me before tracked blocks">
           <LeadMinutesControl value={settings.leadMinutes} onChange={(leadMinutes) => updateSettings({ leadMinutes })} />
         </SettingRow>
+        <SettingRow label="Reminder sound">
+          <SoundControl value={settings.notificationSound} onChange={(notificationSound) => updateSettings({ notificationSound })} />
+        </SettingRow>
+        <SettingRow label="Sound when I finish something">
+          <Switch
+            label="Sound when I finish something"
+            checked={settings.completionSound}
+            onChange={(completionSound) => updateSettings({ completionSound })}
+          />
+        </SettingRow>
         <SettingRow label="Close my day (evening review)">
           <TimeSelect label="Evening review" value={settings.reviewAt} onChange={(reviewAt) => updateSettings({ reviewAt })} from={20 * 60} to={24 * 60} />
         </SettingRow>
@@ -339,7 +349,7 @@ function DataSettings() {
         </SettingRow>
         <SettingRow label="Automatic backups">
           <span className="text-[12.5px] text-muted" title={info?.backupsDir}>
-            Daily · last 14 days kept
+            Daily · last 2 months kept
           </span>
         </SettingRow>
         <SettingRow label="Export everything (JSON)">

@@ -63,6 +63,12 @@ function buildScale(blocks: Block[], now: number, readOnly: boolean) {
     points.add(clamp(b.start, start, end));
     points.add(clamp(b.end, start, end));
   }
+  // Split compressed stretches (background bands, free gaps) at "now", so the time left in them
+  // keeps its own room instead of being squeezed toward the edge. Tracked blocks are never split:
+  // their height must not change as the clock moves.
+  if (!readOnly && now > start && now < end && !blocks.some((b) => b.kind === "commitment" && b.start < now && b.end > now)) {
+    points.add(Math.floor(now));
+  }
   const sorted = [...points].sort((a, b) => a - b);
 
   const segs: Seg[] = [];
@@ -110,8 +116,12 @@ function buildScale(blocks: Block[], now: number, readOnly: boolean) {
 }
 
 export function Timeline({
-  blocks, now, readOnly = false, dayOffset = 0,
-}: { blocks: Block[]; now: number; readOnly?: boolean; dayOffset?: number }) {
+  blocks, now, readOnly = false, history = false, dayOffset = 0,
+}: {
+  blocks: Block[]; now: number; readOnly?: boolean; dayOffset?: number;
+  /** A past day: shown as it was left, nothing can be changed or added. */
+  history?: boolean;
+}) {
   const open = useApp((s) => s.open);
   const scroller = useRef<HTMLDivElement>(null);
   const sorted = useMemo(() => sortByStart(blocks), [blocks]);
@@ -161,9 +171,9 @@ export function Timeline({
           </div>
         ))}
 
-        <div className="absolute top-0 right-0 bottom-0 left-14 z-10">
+        <div className="absolute top-0 right-0 bottom-0 left-14 z-10" inert={history}>
           {scale.segs
-            .filter((s) => s.kind === "free" && (readOnly || s.to > now) && !(s.to === scale.end && s.to - s.from <= 60))
+            .filter((s) => !history && s.kind === "free" && (readOnly || s.to > now) && !(s.to === scale.end && s.to - s.from <= 60))
             .map((s) => {
               const from = readOnly ? s.from : Math.max(s.from, Math.ceil(now / 5) * 5);
               const top = scale.map(from) + 3;
@@ -188,7 +198,7 @@ export function Timeline({
             <TimelineBlock
               key={b.id}
               block={b}
-              now={readOnly ? -1 : now}
+              now={history ? 24 * 60 : readOnly ? -1 : now}
               top={scale.map(b.start)}
               height={scale.map(b.end) - scale.map(b.start)}
               lane={lanes.get(b.id)}

@@ -223,7 +223,16 @@ fn notify(app: &AppHandle, title: &str, body: &str, buttons: &[(&str, &str)], re
     // Our own registered identity; PowerShell's only as a last-resort fallback.
     let app_id = APP_ID.get().cloned().unwrap_or_else(|| Toast::POWERSHELL_APP_ID.to_string());
 
+    // Our own sounds are played by us (Windows won't attach them to an unpackaged app's toast).
+    let chosen = {
+        let db = app.state::<Db>();
+        let sound = db.0.lock().map(|conn| store::notification_sound(&conn)).unwrap_or_else(|_| "marimba".into());
+        sound
+    };
     let mut toast = Toast::new(&app_id).title(title).text1(body);
+    if chosen != "default" {
+        toast = toast.sound(None); // silent toast; the sound (if any) is ours
+    }
     for (label, action) in buttons {
         toast = toast.add_button(label, action);
     }
@@ -232,8 +241,13 @@ fn notify(app: &AppHandle, title: &str, body: &str, buttons: &[(&str, &str)], re
         handle(&handle_app, reminder.as_ref(), action.as_deref());
         Ok(())
     });
-    if let Err(err) = toast.show() {
-        eprintln!("notification failed: {err:?}");
+    match toast.show() {
+        Ok(()) => {
+            if crate::sound::is_custom(&chosen) && !crate::sound::user_is_busy() {
+                crate::sound::play(&chosen);
+            }
+        }
+        Err(err) => eprintln!("notification failed: {err:?}"),
     }
 }
 

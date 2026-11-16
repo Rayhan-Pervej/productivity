@@ -39,14 +39,14 @@ Deep links for reviewing states (dev only; `ob=1` skips onboarding, `ob=0&obstep
 
 ## Keyboard
 
-| Keys | Action |
-|---|---|
-| `Ctrl+Alt+Space` / `N` | Quick add |
-| `Ctrl+K` | Command palette |
+| Keys                          | Action                                       |
+| ----------------------------- | -------------------------------------------- |
+| `Ctrl+Alt+Space` / `N`    | Quick add                                    |
+| `Ctrl+K`                    | Command palette                              |
 | `1` `2` `3` `4` `,` | Today · Focus · Inbox · Plans · Settings |
-| `Space` | Mark current block done |
-| `Ctrl+Z` | Undo |
-| `Esc` | Close / back to Today |
+| `Space`                     | Mark current block done                      |
+| `Ctrl+Z`                    | Undo                                         |
+| `Esc`                       | Close / back to Today                        |
 
 ## Structure
 

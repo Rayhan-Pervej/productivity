@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Clock, Plus } from "lucide-react";
+import { Check, Clock, Eye, Plus } from "lucide-react";
 import { useApp, useCurrent } from "@/store/app";
-import { dayLabel, dayPhrase, fmtCountdown, fmtDuration, todayLabel } from "@/lib/time";
+import { dayLabel, dayPhrase, fmtCountdown, fmtDuration, isoDay, todayLabel } from "@/lib/time";
+import { loadPastDay } from "@/platform/desktop";
 import { blocksForDay } from "@/lib/days";
 import { Button, Kbd } from "@/components/ui";
 import { SegmentedControl } from "@/components/SegmentedControl";
@@ -14,7 +15,7 @@ export function TodayView() {
   const initial = import.meta.env.DEV ? Number(new URLSearchParams(location.search).get("day") ?? 0) : 0;
   const [day, setDay] = useState(initial);
   /** A day picked from the calendar, shown as its own tab beside Tomorrow. */
-  const [picked, setPicked] = useState<number | null>(initial > 1 ? initial : null);
+  const [picked, setPicked] = useState<number | null>(initial > 1 || initial < 0 ? initial : null);
   // A new day started (midnight): show today, close any picked date.
   const dayKey = useApp((s) => s.dayKey);
   const seenDay = useRef(dayKey);
@@ -26,7 +27,7 @@ export function TodayView() {
   }, [dayKey]);
 
   const pick = (offset: number) => {
-    if (offset > 1) setPicked(offset);
+    if (offset > 1 || offset < 0) setPicked(offset);
     setDay(offset);
   };
   const closePicked = () => {
@@ -47,6 +48,10 @@ export function TodayView() {
     [day, templates, upcoming, routines],
   );
   const futureTasks = anytime.filter((t) => t.dayOffset === day && day > 0);
+
+  // A past day comes from the database as it was left (view only).
+  const history = day < 0;
+  const pastBlocks = usePastDay(history ? day : null);
   const addedCount = (d: number) =>
     upcoming.filter((b) => b.dayOffset === d).length + anytime.filter((t) => t.dayOffset === d).length;
 
@@ -67,11 +72,20 @@ export function TodayView() {
             ]}
           />
           <DayPicker selected={day} onPick={pick} />
-          {day <= 1 && <span className="shrink-0 text-[12.5px] whitespace-nowrap text-muted">{todayLabel(day)}</span>}
-          <DaySummary blocks={day === 0 ? blocks : futureBlocks} isToday={day === 0} />
-          <Button size="sm" variant="ghost" className="ml-auto" onClick={() => open("quickAdd", dayPhrase(day))}>
-            <Plus size={14} /> Add <Kbd>N</Kbd>
-          </Button>
+          {(day === 0 || day === 1) && <span className="shrink-0 text-[12.5px] whitespace-nowrap text-muted">{todayLabel(day)}</span>}
+          <DaySummary blocks={day === 0 ? blocks : history ? pastBlocks : futureBlocks} showDone={day <= 0} />
+          {history ? (
+            <span
+              className="ml-auto flex shrink-0 items-center gap-1.5 rounded-md bg-surface px-2 py-1 text-[12px] text-muted"
+              title="Past days are kept as they were. You can look, not change."
+            >
+              <Eye size={13} /> View only
+            </span>
+          ) : (
+            <Button size="sm" variant="ghost" className="ml-auto" onClick={() => open("quickAdd", dayPhrase(day))}>
+              <Plus size={14} /> Add <Kbd>N</Kbd>
+            </Button>
+          )}
         </div>
 
         {day === 0 && <CompactNow />}
@@ -89,6 +103,12 @@ export function TodayView() {
         <div className="min-h-0 flex-1">
           {day === 0 ? (
             <Timeline key="today" blocks={blocks} now={now} />
+          ) : history ? (
+            pastBlocks.length ? (
+              <Timeline key={`day-${day}`} blocks={pastBlocks} now={now} readOnly history dayOffset={day} />
+            ) : (
+              <p className="px-6 pt-10 text-center text-[13px] text-muted">Nothing was planned on this day.</p>
+            )
           ) : (
             <Timeline key={`day-${day}`} blocks={futureBlocks} now={now} readOnly dayOffset={day} />
           )}
@@ -100,7 +120,7 @@ export function TodayView() {
 }
 
 /** "4h 30m planned · 1h done · Office 9h": how much of the day is spoken for. */
-function DaySummary({ blocks, isToday }: { blocks: Block[]; isToday: boolean }) {
+function DaySummary({ blocks, showDone }: { blocks: Block[]; showDone: boolean }) {
   const areas = useApp((s) => s.areas);
   const tracked = blocks.filter((b) => b.kind === "commitment" && b.status !== "skipped");
   const planned = tracked.reduce((sum, b) => sum + (b.end - b.start), 0);
@@ -118,7 +138,7 @@ function DaySummary({ blocks, isToday }: { blocks: Block[]; isToday: boolean }) 
         {planned ? `${fmtDuration(planned)} planned` : "Nothing planned"}
         {planned > 0 && <span className="font-normal text-muted">· {tracked.length} {tracked.length === 1 ? "block" : "blocks"}</span>}
       </span>
-      {isToday && done > 0 && (
+      {showDone && done > 0 && (
         <span className="tabular rounded-md bg-surface px-2 py-0.5 text-success">{fmtDuration(done)} done</span>
       )}
       {background.map((b) => (
@@ -133,6 +153,23 @@ function DaySummary({ blocks, isToday }: { blocks: Block[]; isToday: boolean }) 
       ))}
     </div>
   );
+}
+
+/** A past day's blocks, loaded when `offset` (negative) is set. */
+function usePastDay(offset: number | null) {
+  const [blocks, setBlocks] = useState<Block[]>([]);
+  useEffect(() => {
+    if (offset === null) return;
+    let live = true;
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    setBlocks([]);
+    loadPastDay(isoDay(d)).then((b) => live && setBlocks(b));
+    return () => {
+      live = false;
+    };
+  }, [offset]);
+  return blocks;
 }
 
 /** Shown instead of the side panel on narrow windows. */

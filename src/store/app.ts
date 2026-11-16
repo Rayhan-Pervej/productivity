@@ -9,6 +9,7 @@ import { AREAS, TEMPLATES, blocksFromTemplate, h, templateForWeekday } from "@/d
 import type { Parsed } from "@/lib/parse";
 import { dateOf, dayLabel, fmtTime, isoDay, nowMinutes, roundTo, systemTimeFormat } from "@/lib/time";
 import { uid } from "@/lib/utils";
+import { DEFAULT_REMINDER_SOUND, REMINDER_SOUNDS, playSound } from "@/lib/sounds";
 import { blocksFromRoutines, normalizeDays, repeatPhrase, untilPhrase } from "@/lib/repeat";
 import { currentCommitment, currentContext, missedBlocks, nextCommitment } from "@/lib/day";
 
@@ -121,6 +122,13 @@ const DEFAULT_SETTINGS: Settings = {
   quietFrom: h(0, 30),
   quietTo: h(7),
   timeFormat: systemTimeFormat(),
+  notificationSound: DEFAULT_REMINDER_SOUND,
+  completionSound: true,
+};
+
+/** The little "done" sound, if the user wants it. */
+const doneSound = () => {
+  if (useApp.getState().settings.completionSound) playSound("done");
 };
 
 const blocksFor = (templates: Template[], id: string) =>
@@ -260,7 +268,10 @@ export const useApp = create<State>()(
           set({ ...prev, history: history.slice(0, -1), toast: { id: ++toastSeq, message: "Undone", canUndo: false } });
         },
 
-        completeBlock: (id) => change(mapBlock(id, (b) => ({ ...b, status: "done" })), `Done · ${titleOf(id)}`),
+        completeBlock: (id) => {
+          change(mapBlock(id, (b) => ({ ...b, status: "done" })), `Done · ${titleOf(id)}`);
+          doneSound();
+        },
         reopenBlock: (id) => change(mapBlock(id, (b) => ({ ...b, status: "planned" })), `Marked not done · ${titleOf(id)}`),
         skipBlock: (id) => change(mapBlock(id, (b) => ({ ...b, status: "skipped" })), `Skipped · ${titleOf(id)}`),
         extendBlock: (id, minutes) =>
@@ -317,8 +328,11 @@ export const useApp = create<State>()(
             };
           }, "Moved everything to backlog"),
 
-        toggleTask: (id) =>
-          change((s) => ({ anytime: s.anytime.map((t) => (t.id === id ? { ...t, done: !t.done } : t)) })),
+        toggleTask: (id) => {
+          const finishing = get().anytime.some((t) => t.id === id && !t.done);
+          change((s) => ({ anytime: s.anytime.map((t) => (t.id === id ? { ...t, done: !t.done } : t)) }));
+          if (finishing) doneSound();
+        },
 
         /** Turn a suggestion into a commitment that starts right now (trimmed to fit before the next one). */
         startTask: (id) => {
@@ -576,6 +590,9 @@ export const useApp = create<State>()(
         const merged = { ...current, ...p };
         // Settings saved by older versions may miss newer fields.
         merged.settings = { ...DEFAULT_SETTINGS, ...merged.settings };
+        // A sound removed in an update falls back to the default.
+        if (!REMINDER_SOUNDS.some((s) => s.id === merged.settings.notificationSound))
+          merged.settings.notificationSound = DEFAULT_REMINDER_SOUND;
         const today = dayKey();
         if (p.dayKey === today && p.blocks) return merged;
         return { ...merged, ...rolloverDay({ ...merged, dayKey: p.dayKey ?? "" }, today) };

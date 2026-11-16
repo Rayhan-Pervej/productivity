@@ -592,6 +592,15 @@ fn load_templates(conn: &Connection) -> rusqlite::Result<Vec<Template>> {
 }
 
 /// Blocks matching `where_day` (one `?1` day parameter), with steps; `day_offset` is days from `today`.
+/// A past day's blocks (e.g. "2026-11-10"), as they were left. History is view only.
+pub fn blocks_on(conn: &Connection, day: &str) -> rusqlite::Result<Vec<Block>> {
+    let mut blocks = load_blocks(conn, "day = ?1", day)?;
+    for b in &mut blocks {
+        b.day_offset = None;
+    }
+    Ok(blocks)
+}
+
 fn load_blocks(conn: &Connection, where_day: &str, today: &str) -> rusqlite::Result<Vec<Block>> {
     let mut st = conn.prepare(&format!(
         "SELECT id, day, title, area_id, kind, start_min, end_min, status, from_plan, routine_id, detached FROM blocks
@@ -789,6 +798,18 @@ pub fn reminders_for_today(conn: &Connection, today: NaiveDate) -> rusqlite::Res
         add("ending", b.end, format!("{owner} block is ending"), format!("Is {} done?", b.title));
     }
     Ok(out)
+}
+
+/// The reminder sound chosen in Settings: "default" (Windows), "none", or one of ours (e.g. "marimba").
+/// A sound that no longer exists (removed in an update) falls back to the default.
+pub fn notification_sound(conn: &Connection) -> String {
+    meta_get(conn, "settings")
+        .ok()
+        .flatten()
+        .and_then(|s| serde_json::from_str::<Value>(&s).ok())
+        .and_then(|v| v["notificationSound"].as_str().map(String::from))
+        .filter(|s| s == "default" || s == "none" || crate::sound::is_custom(s))
+        .unwrap_or_else(|| "marimba".into())
 }
 
 pub fn in_quiet_hours(minute: f64, from: f64, to: f64) -> bool {

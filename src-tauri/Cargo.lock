@@ -2888,6 +2888,7 @@ dependencies = [
  "tauri-winrt-notification",
  "tokio",
  "uuid",
+ "windows-sys 0.61.2",
  "winreg",
 ]
 

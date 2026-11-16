@@ -1,11 +1,13 @@
 // Shared settings building blocks, used by both Settings and onboarding,
 // so the same choice always looks and behaves the same.
 import type { ReactNode } from "react";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Play, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Theme } from "@/store/app";
 import type { TimeFormat } from "@/lib/time";
+import { REMINDER_SOUNDS, playSound } from "@/lib/sounds";
 import { SegmentedControl } from "./SegmentedControl";
+import { Select } from "./Select";
 
 /** A rounded card that stacks setting rows with dividers. */
 export function SettingsGroup({ children, className }: { children: ReactNode; className?: string }) {
@@ -63,5 +65,34 @@ export function ClockControl({ value, onChange }: { value: TimeFormat; onChange:
         { value: "24h", label: "24-hour · 21:30" },
       ]}
     />
+  );
+}
+
+/** Pick a sound; choosing one plays it, and the play button replays it. */
+export function SoundControl({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+  const silent = value === "none";
+  return (
+    <span className="flex items-center gap-1.5">
+      <Select
+        label="Reminder sound"
+        value={value}
+        onChange={(id) => {
+          onChange(id);
+          playSound(id);
+        }}
+        options={REMINDER_SOUNDS.map((s) => ({ value: s.id, label: s.label }))}
+        className="w-44"
+      />
+      <button
+        type="button"
+        onClick={() => playSound(value)}
+        disabled={silent}
+        aria-label="Play sound"
+        title="Play"
+        className="grid size-8 cursor-pointer place-items-center rounded-lg border border-border bg-surface text-muted transition-colors hover:border-muted hover:text-fg disabled:cursor-default disabled:opacity-40"
+      >
+        <Play size={13} />
+      </button>
+    </span>
   );
 }

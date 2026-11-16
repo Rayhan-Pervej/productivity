@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 const offsetOf = (d: Date) => Math.round((startOfDay(d).getTime() - startOfDay(new Date()).getTime()) / 86_400_000);
 const WEEK = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+/** How far back history can be viewed (read only). */
+export const HISTORY_DAYS = 60;
 
 /** Calendar button + month popover. Days with things you added show their area colors as dots. */
 export function DayPicker({ selected, onPick }: { selected: number; onPick: (offset: number) => void }) {
@@ -86,7 +88,9 @@ function Month({ selected, onPick }: { selected: number; onPick: (offset: number
     ...Array.from({ length: lead }, () => null),
     ...Array.from({ length: daysInMonth }, (_, i) => new Date(cursor.getFullYear(), cursor.getMonth(), i + 1)),
   ];
-  const isCurrentMonth = cursor.getFullYear() === today.getFullYear() && cursor.getMonth() === today.getMonth();
+  const oldest = new Date(today);
+  oldest.setDate(today.getDate() - HISTORY_DAYS);
+  const atOldestMonth = cursor.getFullYear() * 12 + cursor.getMonth() <= oldest.getFullYear() * 12 + oldest.getMonth();
   const shift = (n: number) => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + n, 1));
 
   return (
@@ -97,7 +101,7 @@ function Month({ selected, onPick }: { selected: number; onPick: (offset: number
         </span>
         <button
           onClick={() => shift(-1)}
-          disabled={isCurrentMonth}
+          disabled={atOldestMonth}
           aria-label="Previous month"
           className="grid size-7 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-text disabled:opacity-30"
         >
@@ -122,16 +126,18 @@ function Month({ selected, onPick }: { selected: number; onPick: (offset: number
           if (!date) return <div key={`e${i}`} />;
           const offset = offsetOf(date);
           const past = offset < 0;
+          const outOfRange = offset < -HISTORY_DAYS;
           const dots = marks.get(offset) ?? [];
           return (
             <button
               key={offset}
-              disabled={past}
+              disabled={outOfRange}
               onClick={() => onPick(offset)}
-              title={dots.length ? "You added something here" : undefined}
+              title={past ? (outOfRange ? undefined : "View this day") : dots.length ? "You added something here" : undefined}
               className={cn(
                 "tabular relative flex h-9 flex-col items-center justify-center rounded-lg text-[12.5px] transition-colors",
-                past && "text-muted/40",
+                outOfRange && "text-muted/30",
+                past && !outOfRange && offset !== selected && "text-muted hover:bg-surface-2 hover:text-text",
                 !past && offset !== selected && "hover:bg-surface-2",
                 offset === selected && "bg-accent font-semibold text-accent-fg",
                 offset === 0 && offset !== selected && "font-semibold text-accent",

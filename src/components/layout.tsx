@@ -1,7 +1,7 @@
 import { CalendarDays, Inbox, LayoutTemplate, Settings, Target, type LucideIcon } from "lucide-react";
 import { useApp, type View } from "@/store/app";
 import { dayProgress } from "@/lib/day";
-import { greeting, todayLabel } from "@/lib/time";
+import { greeting } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { Kbd } from "./ui";
 import { AppLogo, WindowControls } from "./WindowChrome";
@@ -22,13 +22,10 @@ export function TitleBar() {
       data-tauri-drag-region
     >
       <AppLogo size={20} className="pointer-events-none" />
-      <div className="pointer-events-none flex min-w-0 items-baseline gap-3">
-        <span className="text-[15px] font-semibold tracking-tight whitespace-nowrap">
-          {greeting(now)}
-          {name && `, ${name}`}
-        </span>
-        <span className="truncate text-[13px] text-muted">{todayLabel()}</span>
-      </div>
+      <span className="pointer-events-none min-w-0 truncate text-[15px] font-semibold tracking-tight">
+        {greeting(now)}
+        {name && `, ${name}`}
+      </span>
 
       <div
         className="pointer-events-none ml-auto flex items-center gap-3 max-[760px]:hidden"

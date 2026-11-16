@@ -10,6 +10,7 @@ mod commands;
 mod db;
 mod identity;
 mod reminders;
+mod sound;
 mod store;
 mod tray;
 mod window;
@@ -23,7 +24,7 @@ use tauri_plugin_global_shortcut::ShortcutState;
 pub const HIDDEN_ARG: &str = "--hidden";
 pub const DB_FILE: &str = "productivity.db";
 pub const BACKUP_DIR: &str = "backups";
-const BACKUPS_KEPT: usize = 14;
+const BACKUPS_KEPT: usize = 60;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -53,8 +54,10 @@ pub fn run() {
             commands::save_state,
             commands::export_data,
             commands::data_info,
+            commands::day_history,
             reminders::take_pending_actions,
             reminders::preview_notification,
+            sound::play_sound,
             set_autostart,
             get_autostart,
             can_autostart,
@@ -109,7 +112,7 @@ pub fn run() {
     });
 }
 
-/// One backup per day, keeping the last two weeks.
+/// One backup per day, keeping the last two months.
 pub fn backup_today(app: &tauri::AppHandle, conn: &rusqlite::Connection) {
     let Ok(dir) = app.path().app_data_dir() else { return };
     let day = store::day_key(store::local_today());

@@ -66,3 +66,10 @@ pub fn data_info(app: AppHandle) -> Result<DataInfo, String> {
         backups_dir: dir.join(crate::BACKUP_DIR).to_string_lossy().into_owned(),
     })
 }
+
+/// A past day's blocks, for viewing history (read only). `day` is "YYYY-MM-DD".
+#[tauri::command]
+pub fn day_history(db: State<'_, Db>, day: String) -> Result<Vec<store::Block>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    store::blocks_on(&conn, &day).map_err(|e| e.to_string())
+}

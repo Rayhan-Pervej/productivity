@@ -60,10 +60,11 @@ export function roundTo(min: number, step: number) {
   return Math.ceil(min / step) * step;
 }
 
-/** 0 → "Today", 1 → "Tomorrow", otherwise "Thu 12 Nov". */
+/** 0 → "Today", 1 → "Tomorrow", -1 → "Yesterday", otherwise "Thu 12 Nov". */
 export function dayLabel(offset: number, from: Date = new Date()) {
   if (offset === 0) return "Today";
   if (offset === 1) return "Tomorrow";
+  if (offset === -1) return "Yesterday";
   const d = new Date(from);
   d.setDate(d.getDate() + offset);
   return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });

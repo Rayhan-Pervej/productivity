@@ -9,6 +9,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useApp, whenHydrated } from "@/store/app";
 import { fmtTime } from "@/lib/time";
 import { isDesktop } from "./env";
+import type { Block } from "@/domain/types";
 
 export { isDesktop };
 
@@ -104,3 +105,13 @@ export interface DataInfo {
 }
 export const exportData = () => invoke<string>("export_data");
 export const dataInfo = () => invoke<DataInfo>("data_info");
+
+/** A past day's blocks as they were left (view only). Empty outside the desktop app. */
+export async function loadPastDay(day: string): Promise<Block[]> {
+  if (!isDesktop) return [];
+  try {
+    return await invoke<Block[]>("day_history", { day });
+  } catch {
+    return [];
+  }
+}

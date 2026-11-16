@@ -82,9 +82,11 @@ export function Timeline({
           {/* --nest: width of a background band's label column (tasks float to its right). See geometry.ts. */}
           <div className="absolute inset-0 [--nest:148px] @max-[560px]:[--nest:116px]">
             {/* Row lines across the task area of bands that hold tasks (the band would hide them),
-                between the band (z-0) and its tasks (z-2). Not over the band's own label column. */}
+                between the band (z-0) and its tasks (z-2). Not over the band's own label column, and
+                never through the middle of a task (it would show through a faded, done one). */}
             {visibleLabels
               .filter((l) => bandRanges.some((r) => l.y > r.top && l.y < r.bottom))
+              .filter((l) => !sorted.some((b) => b.kind === "commitment" && b.start < l.m && l.m < b.end))
               .map((l) => (
                 <div
                   key={`band-line-${l.m}`}
@@ -92,6 +94,12 @@ export function Timeline({
                   style={{ top: l.y, left: "calc(8px + var(--nest))" }}
                 />
               ))}
+
+            {/* The "now" line: above the bands (so it's solid over their stripes) but under task cards.
+                On a whole pixel and 2 px tall, so it never blends into the stripes and looks dashed. */}
+            {showNow && (
+              <div className="pointer-events-none absolute right-0 left-0 z-[1] h-0.5 bg-accent" style={{ top: Math.round(nowY) - 1 }} />
+            )}
 
             {scale.segs
               .filter((s) => !history && s.kind === "free" && (readOnly || s.to > now) && !(s.to === scale.end && s.to - s.from <= 60))
@@ -137,12 +145,13 @@ export function Timeline({
         </div>
 
         {showNow && (
-          // Centered on nowY: the line (in the middle of the pill's row) sits exactly at the current time.
-          <div className="pointer-events-none absolute right-0 left-0 flex -translate-y-1/2 items-center" style={{ top: nowY }}>
-            <span className="tabular relative z-20 -ml-1 w-[60px] -translate-y-px rounded-md bg-accent py-0.5 text-center text-[10.5px] font-semibold text-accent-fg">
+          // The time pill in the time column (the line itself is drawn with the blocks, under tasks).
+          // A short stub joins the pill to where the line starts.
+          <div className="pointer-events-none absolute left-0 z-20 w-14" style={{ top: Math.round(nowY) }}>
+            <div className="absolute right-0 left-0 -top-px h-0.5 bg-accent" />
+            <span className="tabular absolute -left-1 top-0 w-[60px] -translate-y-1/2 rounded-md bg-accent py-0.5 text-center text-[10.5px] font-semibold text-accent-fg">
               {fmtTime(now)}
             </span>
-            <div className="h-[1.5px] flex-1 bg-accent" />
           </div>
         )}
       </div>

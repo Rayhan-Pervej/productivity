@@ -110,6 +110,9 @@ export function TimelineBlock({
   const missed = block.status === "planned" && past;
   const done = block.status === "done";
   const skipped = block.status === "skipped";
+  // Finished, skipped or missed blocks fade their content, not the card: the card's background stays
+  // solid, so lines behind it (row lines, the now line) never show through.
+  const fade = cn("transition-opacity group-hover:opacity-100", (done || skipped) && "opacity-55", missed && "opacity-80");
 
   const openDetails = () => {
     const real = target();
@@ -141,8 +144,6 @@ export function TimelineBlock({
         celebrate && "animate-[done-pop_650ms_ease-out]",
         active && "z-10 shadow-soft ring-2",
         (missed || skipped) && "border border-dashed border-border",
-        (done || skipped) && "opacity-55 hover:opacity-100",
-        missed && "opacity-80 hover:opacity-100",
       )}
       style={{
         top: top + 1,
@@ -155,9 +156,9 @@ export function TimelineBlock({
         ["--tw-ring-color" as string]: tint(color, 55),
       }}
     >
-      <div className="absolute top-0 bottom-0 left-0 w-1 rounded-l-xl" style={{ background: color }} />
+      <div className={cn("absolute top-0 bottom-0 left-0 w-1 rounded-l-xl", fade)} style={{ background: color }} />
 
-      <div className={cn("flex h-full gap-1.5 pr-2 pl-4", compact ? "items-center" : "flex-col justify-start pt-2.5")}>
+      <div className={cn("flex h-full gap-1.5 pr-2 pl-4", compact ? "items-center" : "flex-col justify-start pt-2.5", fade)}>
         <div className="flex w-full min-w-0 items-center gap-2">
           {done && (
             <motion.span
@@ -171,10 +172,17 @@ export function TimelineBlock({
           <span className="shrink-0 text-[11.5px] font-medium @max-[400px]:hidden" style={{ color }}>
             {area?.name}
           </span>
-          <span className={cn("truncate text-[13.5px] font-medium", (missed || skipped) && "text-muted", skipped && "line-through")}>
+          <span
+            className={cn("min-w-14 truncate text-[13.5px] font-medium", (missed || skipped) && "text-muted", skipped && "line-through")}
+          >
             {block.title}
           </span>
-          {active && <span className="rounded-full bg-accent px-1.5 py-px text-[10px] font-semibold text-accent-fg">now</span>}
+          {active && (
+            // On a narrow block the ring and the now line already say it; the title needs the room.
+            <span className="shrink-0 rounded-full bg-accent px-1.5 py-px text-[10px] font-semibold text-accent-fg @max-[360px]:hidden">
+              now
+            </span>
+          )}
           {block.routineId && (
             <span title="Repeats" className="shrink-0 text-muted @max-[280px]:hidden">
               <Repeat size={12} />
@@ -186,7 +194,7 @@ export function TimelineBlock({
           {missed && <span className="shrink-0 text-[11px] text-attention @max-[320px]:hidden">didn't happen</span>}
           {/* Narrow block: just the start time, so the title keeps its room. */}
           <span
-            className="tabular ml-auto shrink-0 pl-2 text-[11.5px] text-muted"
+            className="tabular ml-auto shrink-0 pl-2 text-[11.5px] text-muted @max-[240px]:hidden"
             title={`${fmtTime(block.start)} – ${fmtTime(block.end)}`}
           >
             <span className="@max-[360px]:hidden">

@@ -64,7 +64,9 @@ export function BackgroundBand({
         );
       }}
       className={cn(
-        "absolute z-0 flex overflow-hidden rounded-xl px-4 text-left disabled:cursor-default",
+        // No z-index of its own (not z-0): its hover guide must join the timeline's layers, above the
+        // row lines (z-1) but below the tasks on it (z-2).
+        "absolute flex overflow-hidden rounded-xl px-4 text-left disabled:cursor-default",
         hosting ? "flex-col items-start gap-0.5 pt-2.5" : "items-center gap-2",
         past && "opacity-60",
       )}
@@ -100,7 +102,9 @@ export function BackgroundBand({
         </>
       )}
 
-      {hover && <HoverGuide hover={hover} lineY={map(hover.minute) - top} bandHeight={height} color={color} hosting={hosting} />}
+      {hover && (
+        <HoverGuide hover={hover} lineY={Math.round(map(hover.minute)) - top} bandHeight={height} color={color} hosting={hosting} />
+      )}
     </button>
   );
 }
@@ -132,9 +136,12 @@ function HoverGuide({
     : clamp(hover.x + 14, 4, hover.width - PILL_W - 4);
   return (
     <>
-      <span className="pointer-events-none absolute right-0 left-0 border-t border-dashed" style={{ top: lineY, borderColor: color }} />
       <span
-        className="tabular pointer-events-none absolute flex items-center gap-1 rounded-md px-1.5 text-[11px] font-semibold whitespace-nowrap text-white shadow-soft"
+        className="pointer-events-none absolute right-0 left-0 z-[1] border-t border-dashed"
+        style={{ top: lineY, borderColor: color }}
+      />
+      <span
+        className="tabular pointer-events-none absolute z-[1] flex items-center gap-1 rounded-md px-1.5 text-[11px] font-semibold whitespace-nowrap text-white shadow-soft"
         style={{ top: pillTop, left: pillLeft, height: PILL_H, background: color }}
       >
         <Plus size={11} strokeWidth={3} /> {fmtTime(hover.minute)}

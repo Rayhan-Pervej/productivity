@@ -69,14 +69,16 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).get("menu")) {
   }, 600);
 }
 
-// Dev-only: ?hoverband=top|bottom simulates hovering a background band's edge (hover guide review).
+// Dev-only: ?hoverband=top|bottom|<time label, e.g. 2:30 PM> simulates hovering a background band (hover guide review).
 if (import.meta.env.DEV && new URLSearchParams(location.search).get("hoverband")) {
   const edge = new URLSearchParams(location.search).get("hoverband");
   setTimeout(() => {
     const band = document.querySelector('[aria-label^="Add something during"]');
     if (!band) return;
     const r = band.getBoundingClientRect();
-    const y = edge === "bottom" ? r.bottom - 2 : r.top + 2;
+    // A time label (e.g. "2:30 PM") hovers exactly on that row line.
+    const label = [...document.querySelectorAll("span.tabular")].find((s) => s.textContent === edge);
+    const y = label ? (label.parentElement?.getBoundingClientRect().top ?? 0) + 1 : edge === "bottom" ? r.bottom - 2 : r.top + 2;
     band.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, clientX: r.right - 40, clientY: y }));
     band.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: r.right - 40, clientY: y }));
   }, 600);

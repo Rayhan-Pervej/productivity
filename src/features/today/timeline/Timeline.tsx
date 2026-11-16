@@ -59,8 +59,6 @@ export function Timeline({
   }, [readOnly]);
 
   const labels = timeLabels(scale, sorted);
-  /** Where bands with tasks on them sit, to draw row lines across them. */
-  const bandRanges = sorted.filter((b) => nesting.hosts.has(b.id)).map((b) => ({ top: scale.map(b.start), bottom: scale.map(b.end) }));
 
   const showNow = !readOnly && now >= scale.start && now <= scale.end;
   const nowY = scale.map(now);
@@ -81,20 +79,8 @@ export function Timeline({
         <div className="@container absolute top-0 right-0 bottom-0 left-14 z-10" inert={history}>
           {/* --nest: width of a background band's label column (tasks float to its right). See geometry.ts. */}
           <div className="absolute inset-0 [--nest:148px] @max-[560px]:[--nest:116px]">
-            {/* Row lines across the task area of bands that hold tasks (the band would hide them),
-                between the band (z-0) and its tasks (z-2). Not over the band's own label column, and
-                never through the middle of a task (it would show through a faded, done one). */}
-            {visibleLabels
-              .filter((l) => bandRanges.some((r) => l.y > r.top && l.y < r.bottom))
-              .filter((l) => !sorted.some((b) => b.kind === "commitment" && b.start < l.m && l.m < b.end))
-              .map((l) => (
-                <div
-                  key={`band-line-${l.m}`}
-                  className="pointer-events-none absolute right-0 z-[1] h-px bg-border/70"
-                  style={{ top: l.y, left: "calc(8px + var(--nest))" }}
-                />
-              ))}
-
+            {/* No row lines inside bands: a band's task cards mark their own times, and the hover
+                guide shows any exact time. Lines in free time come from the time labels above. */}
             {/* The "now" line: above the bands (so it's solid over their stripes) but under task cards.
                 On a whole pixel and 2 px tall, so it never blends into the stripes and looks dashed. */}
             {showNow && (
